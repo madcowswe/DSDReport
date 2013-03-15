@@ -5,7 +5,7 @@
 % See "book", "report", "letter" for other types of document.
 
 %tells you if you use obsolote packages
-\RequirePackage[l2tabu,orthodox]{nag}
+%\RequirePackage[l2tabu,orthodox]{nag}
 
 \documentclass[]{article}
 
@@ -85,7 +85,34 @@ language=c
 \section{Notch Filter} % (fold)
 \label{sec:notch_filter}
 
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = \textwidth]{DSDNotch.pdf}
+	\end{center}
+	\caption{Block diagram of the Notch Filter hardware. FIFO buffers are used to allow efficient interleaved reads and writes to SDRAM. The buffers also serve as Clock Domain Crossing interfaces.}
+	\label{fig:DSDNotch}
+\end{figure}
 
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = 0.8\textwidth]{DirectFormIITransposed.pdf}
+	\end{center}
+	\caption{Second order Direct Form II Transposed filter architecture}
+	\label{fig:df2t}
+\end{figure}
+
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = 0.8\textwidth]{DirectFormIITransposedCritpath.pdf}
+	\end{center}
+	\caption{Annotated version of Figure~\ref{fig:df2t}, showing the main critical paths in the filter core. Shown in red is the path from the input register to the delay register D1. Shown in orange are the alternative paths that have almost as little slack as the red path.}
+	\label{fig:df2tCritpath}
+\end{figure}
+
+architecture
+implementation
+performance and timing (benchmarking)
+results
 
 % section notch_filter (end)
 
