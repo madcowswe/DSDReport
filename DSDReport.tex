@@ -82,6 +82,7 @@ language=c
 \tableofcontents
 \clearpage
 
+
 \section{Notch Filter} % (fold)
 \label{sec:notch_filter}
 
@@ -92,6 +93,61 @@ language=c
 	\caption{Block diagram of the Notch Filter hardware. FIFO buffers are used to allow efficient interleaved reads and writes to SDRAM. The buffers also serve as Clock Domain Crossing interfaces.}
 	\label{fig:DSDNotch}
 \end{figure}
+
+
+The Notch Filter module is a memory mapped hardware accelerator for the purpose of filtering a 16 bit signed input. It is a 2nd order notch filter tuned to to remove any spectral components at 1 kHz.
+The module is capable of Direct Memory Access, and includes optimisations for efficient access to the SDRAM, and uses a buffering, and Clock Domain Crossing strategy, to maximise performance.
+
+
+\subsection{Filter Design} % (fold)
+\label{sub:filter_design}
+
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = \textwidth]{matlabmagnitudelog.PNG}
+	\end{center}
+	\caption{Magnitude response of both the full (double) precision and the quantised filter. The gain is negative infinity dB at 1 kHz.}
+	\label{fig:matlabmagnitudelog}
+\end{figure}
+
+The chosen filter type is a 2nd order notch filter. This filter order is the minimum required to generate the complex pole and zero pairs required to implement a notch filter. In fact, no higher order is needed, as the noise is a pure sinusoid, so the width of the stop-band can be very small, and as such, there are no additional zeroes required.
+
+The filter is designed by simply placing a complex zero pair on the unit circle corresponding to the 1 KHz null we wish to create. To cancel the effect of this zero for other frequencies, we place a pole very close to it on the inside of the unit circle. The bandwidth of the filter is tuned by moving the complex pole radially.
+
+In our case, we elect to place the pole such that the bandwidth of rejection is about 25Hz. This is was chosen as a good trade-off for several reasons. Firstly, placing the pole at this location makes the filter robust to coefficient quantisation, as discussed in Section~\ref{sub:quantization}.
+More importantly, this bandwidth is narrow enough to not affect the music, but wide enough to quickly suppress the overlaid sinusoid at the beginning of the sample.
+The magnitude of the resulting filter can been seen in Figure~\ref{fig:matlabmagnitudelog}.
+
+% subsection filter_design (end)
+
+\subsection{Filter Topology} % (fold)
+\label{sub:filter_topology}
+
+Several different types of filter topologies were considered. It is clear that as a 2nd order 
+
+The effects of quantization depends entirely on the chosen filter topology. 
+
+% subsection filter_topology (end)
+
+\subsection{Quantization} % (fold)
+\label{sub:quantization}
+
+
+
+% subsection quantization (end)
+
+
+
+\subsection{Architecture} % (fold)
+\label{sub:architecture}
+
+Assesment of speed (critical path) of different filter stuctures
+Describe diagram 1, (SDRAM slow, but good for sequential, interleaving)
+
+% subsection architecture (end)
+
+
+
 
 \begin{figure}[htbp]
 	\begin{center}
@@ -109,10 +165,10 @@ language=c
 	\label{fig:df2tCritpath}
 \end{figure}
 
-architecture
-implementation
-performance and timing (benchmarking)
-results
+\pagebreak
+
+
+
 
 % section notch_filter (end)
 
