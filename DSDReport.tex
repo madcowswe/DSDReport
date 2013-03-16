@@ -110,11 +110,11 @@ The module is capable of Direct Memory Access, and includes optimisations for ef
 	\label{fig:matlabmagnitudelog}
 \end{figure}
 
-The chosen filter type is a 2nd order notch filter. This filter order is the minimum required to generate the complex pole and zero pairs required to implement a notch filter. In fact, no higher order is needed, as the noise is a pure sinusoid, so the width of the stop-band can be very small, and as such, there are no additional zeroes required.
+The chosen filter type is a 2nd order IIR filter. This filter order is the minimum required to generate the complex pole and zero pairs required to implement a notch filter. In fact, no higher order is needed, as the noise is a pure sinusoid, so the width of the stop-band can be very small, and as such, there are no additional zeroes required.
 
 The filter is designed by simply placing a complex zero pair on the unit circle corresponding to the 1 KHz null we wish to create. To cancel the effect of this zero for other frequencies, we place a pole very close to it on the inside of the unit circle. The bandwidth of the filter is tuned by moving the complex pole radially.
 
-In our case, we elect to place the pole such that the bandwidth of rejection is about 25Hz. This is was chosen as a good trade-off for several reasons. Firstly, placing the pole at this location makes the filter robust to coefficient quantisation, as discussed in Section~\ref{sub:quantization}.
+In our case, we elect to place the pole such that the bandwidth of rejection is about 25Hz. This is is chosen as a good trade-off for several reasons. Firstly, placing the pole at this location makes the filter robust to coefficient quantisation, as discussed in Section~\ref{sub:quantization}.
 More importantly, this bandwidth is narrow enough to not affect the music, but wide enough to quickly suppress the overlaid sinusoid at the beginning of the sample.
 The magnitude of the resulting filter can been seen in Figure~\ref{fig:matlabmagnitudelog}.
 
@@ -123,7 +123,11 @@ The magnitude of the resulting filter can been seen in Figure~\ref{fig:matlabmag
 \subsection{Filter Topology} % (fold)
 \label{sub:filter_topology}
 
-Several different types of filter topologies were considered. It is clear that as a 2nd order 
+Several different types of filter topologies are considered. Firstly, it is clear that as a 2nd order IIR filter meets the specification, it would be rather inappropriate to implement the same filter as an FIR filter. To get the same gradient 
+
+\begin{equation}
+	
+\end{equation}
 
 The effects of quantization depends entirely on the chosen filter topology. 
 
