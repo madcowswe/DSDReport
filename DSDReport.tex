@@ -42,7 +42,11 @@ commentstyle=\color{mygreen},
 keywordstyle=\color{blue},
 numberstyle=\tiny\color{mygray},
 tabsize=2,
-language=c
+frame=single,
+aboveskip=3mm,
+belowskip=0mm,
+breaklines=true,
+breakatwhitespace=true
 }
 
 % to include a file as a listing: \lstinputlisting{intio.c}
@@ -86,15 +90,6 @@ language=c
 \section{Notch Filter} % (fold)
 \label{sec:notch_filter}
 
-\begin{figure}[htbp]
-	\begin{center}
-		\includegraphics[width = \textwidth]{DSDNotch.pdf}
-	\end{center}
-	\caption{Block diagram of the Notch Filter hardware. FIFO buffers are used to allow efficient interleaved reads and writes to SDRAM. The buffers also serve as Clock Domain Crossing interfaces.}
-	\label{fig:DSDNotch}
-\end{figure}
-
-
 The Notch Filter module is a memory mapped hardware accelerator for the purpose of filtering a 16 bit signed input. It is a 2nd order notch filter tuned to to remove any spectral components at 1 kHz.
 The module is capable of Direct Memory Access, and includes optimisations for efficient access to the SDRAM, and uses a buffering, and Clock Domain Crossing strategy, to maximise performance.
 
@@ -110,6 +105,20 @@ The module is capable of Direct Memory Access, and includes optimisations for ef
 	\label{fig:matlabmagnitudelog}
 \end{figure}
 
+Several different types of filter topologies are considered. Firstly, it is clear that as a 2nd order IIR filter meets the specification, it would be rather inappropriate to implement the same filter as an FIR filter. To get the same sharp transition band using an FIR filter, we would have to use over 10,000 taps. This metric is generated using MATLAB's Parks-McClellan optimal equiripple FIR order estimator; the MATLAB command and result can be seen in Figure~\ref{fig:firpmord}.
+
+\begin{figure}[htbp]
+	\begin{center}
+		\begin{lstlisting}[language = Matlab]
+beethmax = max(abs(fft(beeth5_noise)));
+firpmord([987.5 999 1001 1012.5], [1 0 1], [0.01 10/beethmax 0.01], 44100)
+ans = 13410
+		\end{lstlisting}
+	\end{center}
+	\caption{MATLAB command to estimate the order of FIR filter required for the notch filter specification.}
+	\label{fig:firpmord}
+\end{figure}
+
 The chosen filter type is a 2nd order IIR filter. This filter order is the minimum required to generate the complex pole and zero pairs required to implement a notch filter. In fact, no higher order is needed, as the noise is a pure sinusoid, so the width of the stop-band can be very small, and as such, there are no additional zeroes required.
 
 The filter is designed by simply placing a complex zero pair on the unit circle corresponding to the 1 KHz null we wish to create. To cancel the effect of this zero for other frequencies, we place a pole very close to it on the inside of the unit circle. The bandwidth of the filter is tuned by moving the complex pole radially.
@@ -123,43 +132,129 @@ The magnitude of the resulting filter can been seen in Figure~\ref{fig:matlabmag
 \subsection{Filter Topology} % (fold)
 \label{sub:filter_topology}
 
-Several different types of filter topologies are considered. Firstly, it is clear that as a 2nd order IIR filter meets the specification, it would be rather inappropriate to implement the same filter as an FIR filter. To get the same gradient 
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = 0.6\textwidth]{dfII.PNG}
+	\end{center}
+	\caption{Second order Direct Form II filter topology.}
+	\label{fig:dfII}
+\end{figure}
 
-\begin{equation}
-	
-\end{equation}
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = 0.8\textwidth]{DirectFormIITransposed.pdf}
+	\end{center}
+	\caption{Second order Direct Form II Transposed filter topology.}
+	\label{fig:df2t}
+\end{figure}
 
-The effects of quantization depends entirely on the chosen filter topology. 
+As a second order IIR filter is settled upon, we need to chose what filter topology we will use. The candidates are Direct Forms I and II, and their transposed versions. It is immediately clear that the Direct Form II versions are better than the Direct Form I, as the number of state registers can be halved. Thus, the choice remains between regular and transposed version of Direct Form II.
+
+In a software implementation, the difference between the two would be quite small, but in a hardware implementation they differ significantly. As can be seen in Figure~\ref{fig:dfII}, the Direct Form II filter topology requires an adder chain on the feedback path. This adder chain adds one adder in a chain for every added order of the filter.
+
+Conversely, the Direct Form II Transposed filter topology only has a single 3-input adder for each stage, which is invariant to the filter order, as illustrated by Figure~\ref{fig:df2t}.
+Thus, for the critical path is constant for any order of the filter, and in all cases shorter than the. The timing of the filter is explored further in Section~\ref{sub:timing_analysis}.
 
 % subsection filter_topology (end)
 
 \subsection{Quantization} % (fold)
 \label{sub:quantization}
 
+The effects of quantization depends entirely on the chosen filter topology. An FIR filter, which has no poles (except at the origin), can never go unstable, and as such, it is less sensitive to coefficient quantization. However, as seen in Section~\ref{sub:filter_design}, an FIR filter is simply not feasible for this application. Thus, as an IIR filter is required, careful consideration of the effects of quantization is required.
+
+As this is a hardware implementation, it is possible to independently designate the bit widths for each of the different stages of the filter. That is, it is not only the bit width of the coefficients themselves that need to be tuned, but also the width of the data-paths, the input, the output, the state registers, the multipliers, and the adders. Furthermore, the resources of the target hardware architecture has to be considered.
+For instance, the target FPGA has hardware multipliers that either multiply two 9 bit numbers, or alternatively, multiply two 18 bit numbers. That is, any bit-width between these two values would be underutilising the resources available on the FPGA.
+
+During the initial design of the filter, it was established that a minimum of 12 bits was required for the coefficients of the filter in order to not create any resonance in the filter which would artificially amplify a portion of the passband.
+Furthermore, it was empirically found that playback of the audio at 8 bits was simply not high enough fidelity to do the music justice. At 16 bits, the audio was deemed to be of good enough quality, and as such, the input and output widths of the filter were chosen to be 16 bits.
+
+As we require at least 12 bits wide coefficients, and as the multipliers will have to be 18 bits wide, it is no penalty in terms of hardware resources to simply elect to have 18 bits wide coefficients. That is, as the coefficients do not have to change during runtime, no registers are required to hold the coefficients.
+Furthermore, as the coefficients are 18 bits, and the input is 16 bits, the rest of the system is required to be at least 16 bits wide in order to preserve the precision. However, as the adder and state stages are in series, it is in fact beneficial to have 2-3 more bits. Thus, it was elected to set the adder and state register bit-widths to 18 bits.
+
+Finally, we must consider where to place the binary point in the fixed point representation. As this is a hardware implementation, shifts of the binary point are free. In order to scale the binary point, we used the command \verb"Hdsdsos = autoscale(Hdsdsos, x)" from the digital filter toolbox in MATLAB.
+This command will automatically scale the binary point of the different stages of the filter. It uses the provided input (in this case a 16 bit signed integer sample of the noisy music) to scale the binary point to include as much precision as possible while still avoiding overflow. The result of the operation can be seen in Figures~\ref{fig:Hdsdsos} and \ref{fig:fixedpoint_report}.
 
 
-% subsection quantization (end)
+\begin{figure}[htbp]
+	\begin{center}
+		\begin{lstlisting}
+   FilterStructure: 'Direct-Form II Transposed, Second-Order Sections'
+        Arithmetic: 'fixed' 
+  PersistentMemory: false
 
+   CoeffWordLength: 18                
+     NumFracLength: 16                
+     DenFracLength: 16
+            Signed: true              
+                                      
+   InputWordLength: 16                
+   InputFracLength: 0                 
+                                      
+  OutputWordLength: 16
+  OutputFracLength: 0                 
+                                      
+   StateWordLength: 18
+   StateFracLength: 2                 
+                                      
+ ProductWordLength: 36                
+ NumProdFracLength: 16                
+ DenProdFracLength: 16                
+                                      
+   AccumWordLength: 18                
+NumAccumFracLength: 1                 
+DenAccumFracLength: 1                 
 
-
-\subsection{Architecture} % (fold)
-\label{sub:architecture}
-
-Assesment of speed (critical path) of different filter stuctures
-Describe diagram 1, (SDRAM slow, but good for sequential, interleaving)
-
-% subsection architecture (end)
-
+         RoundMode: 'convergent'      
+      OverflowMode: 'wrap'  
+		\end{lstlisting}
+	\end{center}
+	\caption{Fixed point filter designed in MATLAB.}
+	\label{fig:Hdsdsos}
+\end{figure}
 
 
 
 \begin{figure}[htbp]
 	\begin{center}
-		\includegraphics[width = 0.8\textwidth]{DirectFormIITransposed.pdf}
+		\begin{lstlisting}
+                               Fixed-Point Report                                          
+            -------------------------------------------------------------------
+                  Min       Max     |        Range       | Number of Overflows
+            -------------------------------------------------------------------
+      Input:      -32768      32767 |   -32768     32767 |   0/963144 (0%)
+ Section In:      -32768      32767 |   -32768     32767 |  0/1926288 (0%)
+Section Out:      -23436      23293 |  -131072    131071 |  0/1926288 (0%)
+     Output:      -23436      23293 |   -32768     32767 |   0/963144 (0%)
+     States:      -16423    16408.5 |   -32768  32767.75 |  0/1926288 (0%)
+   Num Prod:   -64870.02      64872 |  -524288    524288 |  0/2889432 (0%)
+   Den Prod:  -46021.588  46304.123 |  -524288    524288 |  0/1926288 (0%)
+    Num Acc:      -64870      64872 |   -65536   65535.5 |  0/1926288 (0%)
+    Den Acc:    -54472.5      54347 |   -65536   65535.5 |  0/1926288 (0%)
+		\end{lstlisting}
 	\end{center}
-	\caption{Second order Direct Form II Transposed filter architecture}
-	\label{fig:df2t}
+	\caption{Filtering Report generated when filtering the input sample}
+	\label{fig:fixedpoint_report}
 \end{figure}
+
+
+\subsection{Architecture} % (fold)
+\label{sub:architecture}
+
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = \textwidth]{DSDNotch.pdf}
+	\end{center}
+	\caption{Block diagram of the Notch Filter hardware. FIFO buffers are used to allow efficient interleaved reads and writes to SDRAM. The buffers also serve as Clock Domain Crossing interfaces.}
+	\label{fig:DSDNotch}
+\end{figure}
+
+
+
+Describe diagram 1, (SDRAM slow, but good for sequential, interleaving)
+
+
+\subsection{Timing analysis} % (fold)
+\label{sub:timing_analysis}
 
 \begin{figure}[htbp]
 	\begin{center}
@@ -168,6 +263,13 @@ Describe diagram 1, (SDRAM slow, but good for sequential, interleaving)
 	\caption{Annotated version of Figure~\ref{fig:df2t}, showing the main critical paths in the filter core. Shown in red is the path from the input register to the delay register D1. Shown in orange are the alternative paths that have almost as little slack as the red path.}
 	\label{fig:df2tCritpath}
 \end{figure}
+
+
+
+
+
+
+
 
 \pagebreak
 
