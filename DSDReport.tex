@@ -132,17 +132,17 @@ The magnitude of the resulting filter can been seen in Figure~\ref{fig:matlabmag
 \subsection{Filter Topology} % (fold)
 \label{sub:filter_topology}
 
-\begin{figure}[htbp]
+\begin{figure}[p]
 	\begin{center}
-		\includegraphics[width = 0.6\textwidth]{dfII.PNG}
+		\includegraphics[width = 0.75\textwidth]{dfII.PNG}
 	\end{center}
 	\caption{Second order Direct Form II filter topology.}
 	\label{fig:dfII}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[p]
 	\begin{center}
-		\includegraphics[width = 0.8\textwidth]{DirectFormIITransposed.pdf}
+		\includegraphics[width = 0.9\textwidth]{DirectFormIITransposed.pdf}
 	\end{center}
 	\caption{Second order Direct Form II Transposed filter topology.}
 	\label{fig:df2t}
@@ -156,6 +156,8 @@ Conversely, the Direct Form II Transposed filter topology only has a single 3-in
 Thus, for the critical path is constant for any order of the filter, and in all cases shorter than the. The timing of the filter is explored further in Section~\ref{sub:timing_analysis}.
 
 % subsection filter_topology (end)
+
+\clearpage
 
 \subsection{Quantization} % (fold)
 \label{sub:quantization}
@@ -174,12 +176,35 @@ Furthermore, as the coefficients are 18 bits, and the input is 16 bits, the rest
 Finally, we must consider where to place the binary point in the fixed point representation. As this is a hardware implementation, shifts of the binary point are free. In order to scale the binary point, we used the command \verb"Hdsdsos = autoscale(Hdsdsos, x)" from the digital filter toolbox in MATLAB.
 This command will automatically scale the binary point of the different stages of the filter. It uses the provided input (in this case a 16 bit signed integer sample of the noisy music) to scale the binary point to include as much precision as possible while still avoiding overflow. The result of the operation can be seen in Figures~\ref{fig:Hdsdsos} and \ref{fig:fixedpoint_report}.
 
-
 \begin{figure}[htbp]
 	\begin{center}
 		\begin{lstlisting}
+                               Fixed-Point Report                                          
+            -------------------------------------------------------------------
+                  Min       Max     |        Range       | Number of Overflows
+            -------------------------------------------------------------------
+      Input:      -32768      32767 |   -32768     32767 |   0/963144 (0%)
+ Section In:      -32768      32767 |   -32768     32767 |  0/1926288 (0%)
+Section Out:      -23436      23293 |  -131072    131071 |  0/1926288 (0%)
+     Output:      -23436      23293 |   -32768     32767 |   0/963144 (0%)
+     States:      -16423    16408.5 |   -32768  32767.75 |  0/1926288 (0%)
+   Num Prod:   -64870.02      64872 |  -524288    524288 |  0/2889432 (0%)
+   Den Prod:  -46021.588  46304.123 |  -524288    524288 |  0/1926288 (0%)
+    Num Acc:      -64870      64872 |   -65536   65535.5 |  0/1926288 (0%)
+    Den Acc:    -54472.5      54347 |   -65536   65535.5 |  0/1926288 (0%)
+		\end{lstlisting}
+	\end{center}
+	\caption{Filtering Report generated when filtering the input sample}
+	\label{fig:fixedpoint_report}
+\end{figure}
+
+\begin{figure}[htb]
+	\begin{center}
+		\begin{lstlisting}
    FilterStructure: 'Direct-Form II Transposed, Second-Order Sections'
-        Arithmetic: 'fixed' 
+        Arithmetic: 'fixed'
+         Numerator: [1 -1.979736328125 1]                  
+       Denominator: [1 -1.97576904296875 0.996002197265625]
   PersistentMemory: false
 
    CoeffWordLength: 18                
@@ -212,33 +237,20 @@ DenAccumFracLength: 1
 	\label{fig:Hdsdsos}
 \end{figure}
 
+% subsection quantization (end)
 
 
-\begin{figure}[htbp]
-	\begin{center}
-		\begin{lstlisting}
-                               Fixed-Point Report                                          
-            -------------------------------------------------------------------
-                  Min       Max     |        Range       | Number of Overflows
-            -------------------------------------------------------------------
-      Input:      -32768      32767 |   -32768     32767 |   0/963144 (0%)
- Section In:      -32768      32767 |   -32768     32767 |  0/1926288 (0%)
-Section Out:      -23436      23293 |  -131072    131071 |  0/1926288 (0%)
-     Output:      -23436      23293 |   -32768     32767 |   0/963144 (0%)
-     States:      -16423    16408.5 |   -32768  32767.75 |  0/1926288 (0%)
-   Num Prod:   -64870.02      64872 |  -524288    524288 |  0/2889432 (0%)
-   Den Prod:  -46021.588  46304.123 |  -524288    524288 |  0/1926288 (0%)
-    Num Acc:      -64870      64872 |   -65536   65535.5 |  0/1926288 (0%)
-    Den Acc:    -54472.5      54347 |   -65536   65535.5 |  0/1926288 (0%)
-		\end{lstlisting}
-	\end{center}
-	\caption{Filtering Report generated when filtering the input sample}
-	\label{fig:fixedpoint_report}
-\end{figure}
+\subsection{Filter Implementation} % (fold)
+\label{sub:filter_implementation}
+
+Using the \verb"generatehdl" command..
 
 
-\subsection{Architecture} % (fold)
-\label{sub:architecture}
+% subsection filter_implementation (end)
+
+
+\subsection{Hardware Implementation} % (fold)
+\label{sub:hardware_implementation}
 
 \begin{figure}[htbp]
 	\begin{center}
@@ -248,9 +260,35 @@ Section Out:      -23436      23293 |  -131072    131071 |  0/1926288 (0%)
 	\label{fig:DSDNotch}
 \end{figure}
 
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = 0.3\textwidth]{fifoBlock.PNG}
+	\end{center}
+	\caption{Block diagram of the First In First Out buffers used for both data buffering and Clock Domain Crossing}
+	\label{fig:fifoblock}
+\end{figure}
+
+The filtering module, depicted in Figure~\ref{fig:DSDNotch}, is implemented as a memory mapped device. The CPU communicates with the hardware block by writing to a Avalon slave interface.
+The hardware module also has a Avalon Memory-Mapped Master interface so that the data required for the filtering operation can be fetched independently of the CPU, an operation known as Direct Memory Access (DMA).
+
+The target architecture, the DE0 board, only has a single off chip memory with high memory bandwidth, the SDRAM memory. The Flash memory that is present on this board has such low memory bandwidth that if it were to be used, it would slow the system down several times over.
+Thus, to complete the filtering operation, the data must be fetched from SDRAM, filtered, and then stored back in the same memory (but at a different location). The solution to this contention is to use a custom arbitrator that will interleave the reads and writes to SDRAM.
+
+As non-sequential access to SDRAM is slow and sequential access is fast, we use a feature of the Avalon interface known as Bursting. This feature locks the slave device, in this case the SDRAM controller, and forces it to fetch or store a sequential chunk of data as one uninterrupted operation.
+That is, we are able to lock the arbitration of the Avalon interconnect to finish serving our sequential burst before it interleaves any requests from other masters, such as the CPU.
+
+In order to maximise efficiency, we use a pair of First In First Out (FIFO) buffers to absorb the data that is obtained during a read burst, or to ensure sustained write throughput during write burst.
+These buffers are constructed from the architecture specific double ported memory blocks (M9K memory blocks), as shown in Figure~\ref{fig:fifoblock}.
+These FIFO blocks support different clocks on the read and write ports. Thus they can be, and are, used as Clock Domain Crossing (CDC) logic. This means that we can operate the filter core at a different clock speed than the rest of the system.
+
+The core of the filter is limited to operating at 80MHz, while the rest of the system operates at 160MHz (see Section~\ref{sub:timing_analysis} for a detailed timing analysis). This means that even though the memory access is interleaved and cannot fetch one new word every clock cycle on average, the filter can still operate at almost full saturation.
 
 
 Describe diagram 1, (SDRAM slow, but good for sequential, interleaving)
+As described in Section~\ref{sub:timing_analysis}.
+
+
+% subsection architecture (end)
 
 
 \subsection{Timing analysis} % (fold)
@@ -260,11 +298,40 @@ Describe diagram 1, (SDRAM slow, but good for sequential, interleaving)
 	\begin{center}
 		\includegraphics[width = 0.8\textwidth]{DirectFormIITransposedCritpath.pdf}
 	\end{center}
-	\caption{Annotated version of Figure~\ref{fig:df2t}, showing the main critical paths in the filter core. Shown in red is the path from the input register to the delay register D1. Shown in orange are the alternative paths that have almost as little slack as the red path.}
+	\caption{Annotated version of Figure~\ref{fig:df2t}, showing the main critical paths in the filter core. Shown in red is the critical path; from the input register to the delay register D1. Shown in orange are the alternative paths that have almost as little slack as the red path.}
 	\label{fig:df2tCritpath}
 \end{figure}
 
+As mentioned in Section~\ref{sub:filter_topology}, Direct Form II Transposed is the chosen filter topology because of its superior timing characteristics. Nevertheless, the performance of the filter core is limited to processing 80 Million samples per second.
+This is because the critical path, depicted in red in Figure~\ref{fig:df2tCritpath}, is forced to pass through two adder stages and one multiplier.
+Because the filter is recursive in nature, it is not possible to pipeline this path and as such it is not possible to increase the clock speed in a simple way. There is a method called Look-Ahead pipe-lining, which involves creating pole an zero pairs that cancel each other out, in order to be able to pipeline the feedback path.
+However, this approach was deemed too involved for the purposes of this project.
 
+One optimisation is however possible. As seen in Figure~\ref{fig:df2tCritpath}, the $b_0$ coefficient multiplier is not present. That is because, in our case, this coefficient, representing the overall gain of the system, is unity.
+However, because of the linearity of IIR filters, if this gain is required to be non-unity, it can still be present, but moved to the other side of the input register.
+Thus, the critical path is still maintained to be two adders and one multiplier for any Direct Form II Transposed filter implementation.
+In our case, however, to optimise the resources used for the filter, we elected to optimise away both multiplier $b_0$ and $b_2$, as they are both unity.
+
+When performing the timing analysis we found that there were several paths that had a timing slack that was almost as tight as the critical path. These are depicted in orange in Figure~\ref{fig:df2tCritpath}. That is, the paths from the input register to $D1$, from $D1$ to $D1$, from the input register to $D2$ and from $D1$ to $D2$, all have similar timing characteristics, and are the limiting paths in the design.
+It is interesting to compare the fact that they all have such similar timing characteristics (within 100ps slack of each other), to the timing expected from inspecting the data-paths in a Direct Form II Transposed filter topology. That is, as seen in Figure~\ref{fig:df2tCritpath}, all of these paths pass through two adders and one multiplier.
+It is interesting to see that the expected timing from a high level topology perspective translates so well to the final hardware implementation.
+
+
+
+85 degC
+80.55 MHz
+162.0 MHz
+Metastability MTBF: >1 Billion Years
+
+0 degC
+90.59 MHz
+181.82 MHz
+Metastability MTBF: >1 Billion Years
+
+2stage synch.
+
+
+% subsection timing_analysis (end)
 
 
 
