@@ -42,8 +42,8 @@ commentstyle=\color{mygreen},
 keywordstyle=\color{blue},
 numberstyle=\tiny\color{mygray},
 tabsize=2,
-frame=single,
-aboveskip=3mm,
+frame=tb,
+aboveskip=5mm,
 belowskip=0mm,
 breaklines=true,
 breakatwhitespace=true
@@ -70,7 +70,7 @@ breakatwhitespace=true
 %%%-------------------------------------------------------------------
 
 
-\title{Title Here}
+\title{Digital System Design Report}
 \author{Oskar Weigl - ow610\\ and \\ Ryan Savitski - rs510}
 %\date{} % Activate to display a given date or no date (if empty),
          % otherwise the current date is printed 
@@ -107,7 +107,7 @@ The module is capable of Direct Memory Access, and includes optimisations for ef
 
 Several different types of filter topologies are considered. Firstly, it is clear that as a 2nd order IIR filter meets the specification, it would be rather inappropriate to implement the same filter as an FIR filter. To get the same sharp transition band using an FIR filter, we would have to use over 10,000 taps. This metric is generated using MATLAB's Parks-McClellan optimal equiripple FIR order estimator; the MATLAB command and result can be seen in Figure~\ref{fig:firpmord}.
 
-\begin{figure}[htbp]
+\begin{figure}[tbp]
 	\begin{center}
 		\begin{lstlisting}[language = Matlab]
 beethmax = max(abs(fft(beeth5_noise)));
@@ -132,7 +132,7 @@ The magnitude of the resulting filter can been seen in Figure~\ref{fig:matlabmag
 \subsection{Filter Topology} % (fold)
 \label{sub:filter_topology}
 
-\begin{figure}[p]
+\begin{figure}[htbp]
 	\begin{center}
 		\includegraphics[width = 0.75\textwidth]{dfII.PNG}
 	\end{center}
@@ -140,7 +140,7 @@ The magnitude of the resulting filter can been seen in Figure~\ref{fig:matlabmag
 	\label{fig:dfII}
 \end{figure}
 
-\begin{figure}[p]
+\begin{figure}[htbp]
 	\begin{center}
 		\includegraphics[width = 0.9\textwidth]{DirectFormIITransposed.pdf}
 	\end{center}
@@ -157,7 +157,44 @@ Thus, for the critical path is constant for any order of the filter, and in all 
 
 % subsection filter_topology (end)
 
-\clearpage
+\begin{figure}[htbp]
+	\begin{center}
+		\begin{lstlisting}
+   FilterStructure: 'Direct-Form II Transposed, Second-Order Sections'
+        Arithmetic: 'fixed'
+         Numerator: [1 -1.979736328125 1]                  
+       Denominator: [1 -1.97576904296875 0.996002197265625]
+  PersistentMemory: false
+
+   CoeffWordLength: 18                
+     NumFracLength: 16                
+     DenFracLength: 16
+            Signed: true              
+                                      
+   InputWordLength: 16                
+   InputFracLength: 0                 
+                                      
+  OutputWordLength: 16
+  OutputFracLength: 0                 
+                                      
+   StateWordLength: 18
+   StateFracLength: 2                 
+                                      
+ ProductWordLength: 36                
+ NumProdFracLength: 16                
+ DenProdFracLength: 16                
+                                      
+   AccumWordLength: 18                
+NumAccumFracLength: 1                 
+DenAccumFracLength: 1                 
+
+         RoundMode: 'convergent'      
+      OverflowMode: 'wrap'  
+		\end{lstlisting}
+	\end{center}
+	\caption{Fixed point filter designed in MATLAB.}
+	\label{fig:Hdsdsos}
+\end{figure}
 
 \subsection{Quantization} % (fold)
 \label{sub:quantization}
@@ -198,44 +235,44 @@ Section Out:      -23436      23293 |  -131072    131071 |  0/1926288 (0%)
 	\label{fig:fixedpoint_report}
 \end{figure}
 
-\begin{figure}[htb]
-	\begin{center}
-		\begin{lstlisting}
-   FilterStructure: 'Direct-Form II Transposed, Second-Order Sections'
-        Arithmetic: 'fixed'
-         Numerator: [1 -1.979736328125 1]                  
-       Denominator: [1 -1.97576904296875 0.996002197265625]
-  PersistentMemory: false
+% \begin{figure}[htb]
+% 	\begin{center}
+% 		\begin{lstlisting}
+%    FilterStructure: 'Direct-Form II Transposed, Second-Order Sections'
+%         Arithmetic: 'fixed'
+%          Numerator: [1 -1.979736328125 1]                  
+%        Denominator: [1 -1.97576904296875 0.996002197265625]
+%   PersistentMemory: false
 
-   CoeffWordLength: 18                
-     NumFracLength: 16                
-     DenFracLength: 16
-            Signed: true              
+%    CoeffWordLength: 18                
+%      NumFracLength: 16                
+%      DenFracLength: 16
+%             Signed: true              
                                       
-   InputWordLength: 16                
-   InputFracLength: 0                 
+%    InputWordLength: 16                
+%    InputFracLength: 0                 
                                       
-  OutputWordLength: 16
-  OutputFracLength: 0                 
+%   OutputWordLength: 16
+%   OutputFracLength: 0                 
                                       
-   StateWordLength: 18
-   StateFracLength: 2                 
+%    StateWordLength: 18
+%    StateFracLength: 2                 
                                       
- ProductWordLength: 36                
- NumProdFracLength: 16                
- DenProdFracLength: 16                
+%  ProductWordLength: 36                
+%  NumProdFracLength: 16                
+%  DenProdFracLength: 16                
                                       
-   AccumWordLength: 18                
-NumAccumFracLength: 1                 
-DenAccumFracLength: 1                 
+%    AccumWordLength: 18                
+% NumAccumFracLength: 1                 
+% DenAccumFracLength: 1                 
 
-         RoundMode: 'convergent'      
-      OverflowMode: 'wrap'  
-		\end{lstlisting}
-	\end{center}
-	\caption{Fixed point filter designed in MATLAB.}
-	\label{fig:Hdsdsos}
-\end{figure}
+%          RoundMode: 'convergent'      
+%       OverflowMode: 'wrap'  
+% 		\end{lstlisting}
+% 	\end{center}
+% 	\caption{Fixed point filter designed in MATLAB.}
+% 	\label{fig:Hdsdsos}
+% \end{figure}
 
 % subsection quantization (end)
 
@@ -283,12 +320,7 @@ These FIFO blocks support different clocks on the read and write ports. Thus the
 
 The core of the filter is limited to operating at 80MHz, while the rest of the system operates at 160MHz (see Section~\ref{sub:timing_analysis} for a detailed timing analysis). This means that even though the memory access is interleaved and cannot fetch one new word every clock cycle on average, the filter can still operate at almost full saturation.
 
-
-Describe diagram 1, (SDRAM slow, but good for sequential, interleaving)
-As described in Section~\ref{sub:timing_analysis}.
-
-
-% subsection architecture (end)
+% subsection hardware_implementation (end)
 
 
 \subsection{Timing analysis} % (fold)
@@ -303,43 +335,65 @@ As described in Section~\ref{sub:timing_analysis}.
 \end{figure}
 
 As mentioned in Section~\ref{sub:filter_topology}, Direct Form II Transposed is the chosen filter topology because of its superior timing characteristics. Nevertheless, the performance of the filter core is limited to processing 80 Million samples per second.
-This is because the critical path, depicted in red in Figure~\ref{fig:df2tCritpath}, is forced to pass through two adder stages and one multiplier.
+This is because the critical path, depicted in red in Figure~\ref{fig:df2tCritpath}, is forced to pass through two adder stages and one multiplier block.
 Because the filter is recursive in nature, it is not possible to pipeline this path and as such it is not possible to increase the clock speed in a simple way. There is a method called Look-Ahead pipe-lining, which involves creating pole an zero pairs that cancel each other out, in order to be able to pipeline the feedback path.
 However, this approach was deemed too involved for the purposes of this project.
 
 One optimisation is however possible. As seen in Figure~\ref{fig:df2tCritpath}, the $b_0$ coefficient multiplier is not present. That is because, in our case, this coefficient, representing the overall gain of the system, is unity.
-However, because of the linearity of IIR filters, if this gain is required to be non-unity, it can still be present, but moved to the other side of the input register.
+However, because of the linearity of IIR filters, if this gain is required to be non-unity, it can be moved to the other side of the input register.
 Thus, the critical path is still maintained to be two adders and one multiplier for any Direct Form II Transposed filter implementation.
 In our case, however, to optimise the resources used for the filter, we elected to optimise away both multiplier $b_0$ and $b_2$, as they are both unity.
 
-When performing the timing analysis we found that there were several paths that had a timing slack that was almost as tight as the critical path. These are depicted in orange in Figure~\ref{fig:df2tCritpath}. That is, the paths from the input register to $D1$, from $D1$ to $D1$, from the input register to $D2$ and from $D1$ to $D2$, all have similar timing characteristics, and are the limiting paths in the design.
-It is interesting to compare the fact that they all have such similar timing characteristics (within 100ps slack of each other), to the timing expected from inspecting the data-paths in a Direct Form II Transposed filter topology. That is, as seen in Figure~\ref{fig:df2tCritpath}, all of these paths pass through two adders and one multiplier.
-It is interesting to see that the expected timing from a high level topology perspective translates so well to the final hardware implementation.
+Furthermore, when performing the timing analysis, we found that there were several paths that had a timing slack that was almost as tight as the critical path. These are depicted in orange in Figure~\ref{fig:df2tCritpath}. That is, the paths from the input register to $D1$, from $D1$ to $D1$, from the input register to $D2$ and from $D1$ to $D2$, all have similar timing characteristics, and are the limiting paths in the design.
 
+In fact, it is interesting to note that the similarity of the timing of these paths is expected expected when inspecting the data-paths in a Direct Form II Transposed filter topology. That is, as seen in Figure~\ref{fig:df2tCritpath}, all of these paths pass through two adders and one multiplier.
+It is fascinating to see that the expected timing from a high level topology perspective translates so well to the final hardware implementation.
 
+%TODO: 2stage synch.
 
-85 degC
-80.55 MHz
-162.0 MHz
-Metastability MTBF: >1 Billion Years
+\begin{table}[htbp]
+	\caption{Timing performance of the system at various operating conditions.}
+	\label{tab:fmax}
+	\begin{center}
+		\begin{tabular}{l|cc}
+		\hline
 
-0 degC
-90.59 MHz
-181.82 MHz
-Metastability MTBF: >1 Billion Years
+		\hline
+			 & $0^\circ$C & $85^\circ$C  \\
+		\hline
+			\textbf{Maximum System Frequency} 		& 181.82 MHz					& 162.0 MHz \\
+		\hline
+			\textbf{Maximum Filter Core Frequency}	& 90.59 MHz						& 80.55 MHz \\
+		\hline
+			\textbf{Metastability MTBF}				& \textgreater 1 Billion Years	& \textgreater 1 Billion Years \\
+		\hline
 
-2stage synch.
-
+		\hline
+		\end{tabular}
+	\end{center}
+\end{table}
 
 % subsection timing_analysis (end)
 
 
+\subsection{Tuning for Speed} % (fold)
+\label{sub:tuning_for_speed}
+
+Adress calculation stage too slow: decide when to stop, full pointer arithmetic, etc
+Using feedback from timing analysis:
+	pipeline address calculation stage
+	use base + offset
 
 
+% subsection tuning_for_speed (end)
 
 
-\pagebreak
+\subsection{Performance Results} % (fold)
+\label{sub:performance_results}
 
+benchmark results
+
+% subsection performance_results (end)
 
 
 
