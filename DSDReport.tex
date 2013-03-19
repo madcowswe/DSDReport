@@ -88,6 +88,11 @@ breakatwhitespace=true
 \tableofcontents
 \clearpage
 
+\section{Floating Point Hardware} % (fold)
+\label{sec:floating_point_hardware}
+
+% section floating_point_hardware (end)
+
 \section{Determinant Calculation Hardware Accelerator} % (fold)
 \label{sec:determinant_calculation_hardware_accelerator}
 
@@ -115,6 +120,18 @@ breakatwhitespace=true
 	\end{center}
 \end{table}
 
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = 0.8\textwidth]{DeterminantPipeline.pdf}
+	\end{center}
+	\caption{Block diagram of the hardware implementation of the Doolittle Algorithm.}
+	\label{fig:det_block}
+\end{figure}
+
+
+
+
+
 % section determinant_calculation_hardware_accelerator (end)
 
 
@@ -127,21 +144,12 @@ breakatwhitespace=true
 The Notch Filter module is a memory mapped hardware accelerator for the purpose of filtering a 16 bit signed input. It is a 2nd order notch filter tuned to to remove any spectral components at 1 kHz.
 The module is capable of Direct Memory Access, and includes optimisations for efficient access to the SDRAM, and uses a buffering, and Clock Domain Crossing strategy, to maximise performance.
 
-
 \subsection{Filter Design} % (fold)
 \label{sub:filter_design}
 
-\begin{figure}[htbp]
-	\begin{center}
-		\includegraphics[width = \textwidth]{matlabmagnitudelog.PNG}
-	\end{center}
-	\caption{Magnitude response of both the full (double) precision and the quantised filter. The gain is negative infinity dB at 1 kHz.}
-	\label{fig:matlabmagnitudelog}
-\end{figure}
-
 Several different types of filter topologies are considered. Firstly, it is clear that as a 2nd order IIR filter meets the specification, it would be rather inappropriate to implement the same filter as an FIR filter. To get the same sharp transition band using an FIR filter, we would have to use over 10,000 taps. This metric is generated using MATLAB's Parks-McClellan optimal equiripple FIR order estimator; the MATLAB command and result can be seen in Figure~\ref{fig:firpmord}.
 
-\begin{figure}[tbp]
+\begin{figure}[htbp]
 	\begin{center}
 		\begin{lstlisting}[language = Matlab]
 beethmax = max(abs(fft(beeth5_noise)));
@@ -161,12 +169,20 @@ In our case, we elect to place the pole such that the bandwidth of rejection is 
 More importantly, this bandwidth is narrow enough to not affect the music, but wide enough to quickly suppress the overlaid sinusoid at the beginning of the sample.
 The magnitude of the resulting filter can been seen in Figure~\ref{fig:matlabmagnitudelog}.
 
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = \textwidth]{matlabmagnitudelog.PNG}
+	\end{center}
+	\caption{Magnitude response of both the full (double) precision and the quantised filter. The gain is negative infinity dB at 1 kHz.}
+	\label{fig:matlabmagnitudelog}
+\end{figure}
+
 % subsection filter_design (end)
 
 \subsection{Filter Topology} % (fold)
 \label{sub:filter_topology}
 
-\begin{figure}[htbp]
+\begin{figure}[btp]
 	\begin{center}
 		\includegraphics[width = 0.75\textwidth]{dfII.PNG}
 	\end{center}
@@ -174,7 +190,7 @@ The magnitude of the resulting filter can been seen in Figure~\ref{fig:matlabmag
 	\label{fig:dfII}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[tbp]
 	\begin{center}
 		\includegraphics[width = 0.9\textwidth]{DirectFormIITransposed.pdf}
 	\end{center}
@@ -191,7 +207,7 @@ Thus, for the critical path is constant for any order of the filter, and in all 
 
 % subsection filter_topology (end)
 
-\begin{table}[htbp]
+\begin{table}[htb]
 	\begin{center}
 		\begin{lstlisting}
    FilterStructure: 'Direct-Form II Transposed, Second-Order Sections'
@@ -245,9 +261,9 @@ As we require at least 12 bits wide coefficients, and as the multipliers will ha
 Furthermore, as the coefficients are 18 bits, and the input is 16 bits, the rest of the system is required to be at least 16 bits wide in order to preserve the precision. However, as the adder and state stages are in series, it is in fact beneficial to have 2-3 more bits. Thus, it is elected to set the adder and state register bit-widths to 18 bits.
 
 Finally, we must consider where to place the binary point in the fixed point representation. As this is a hardware implementation, shifts of the binary point are free. In order to scale the binary point, we used the command \verb"Hdsdsos = autoscale(Hdsdsos, x)" from the digital filter toolbox in MATLAB.
-This command will automatically scale the binary point of the different stages of the filter. It uses the provided input (in this case a 16 bit signed integer sample of the noisy music) to scale the binary point to include as much precision as possible while still avoiding overflow. The result of the operation can be seen in Figures~\ref{tab:Hdsdsos} and \ref{fig:fixedpoint_report}.
+This command will automatically scale the binary point of the different stages of the filter. It uses the provided input (in this case a 16 bit signed integer sample of the noisy music) to scale the binary point to include as much precision as possible while still avoiding overflow. The result of the operation can be seen in Figures~\ref{tab:Hdsdsos} and \ref{tab:fixedpoint_report}.
 
-\begin{figure}[htbp]
+\begin{table}[htbp]
 	\begin{center}
 		\begin{lstlisting}
                                Fixed-Point Report                                          
@@ -266,8 +282,8 @@ Section Out:      -23436      23293 |  -131072    131071 |  0/1926288 (0%)
 		\end{lstlisting}
 	\end{center}
 	\caption{Filtering Report generated when filtering the input sample}
-	\label{fig:fixedpoint_report}
-\end{figure}
+	\label{tab:fixedpoint_report}
+\end{table}
 
 % subsection quantization (end)
 
@@ -282,7 +298,15 @@ Using the \verb"fdhdltool" command, we are able to generate Verilog HDL from the
 As this method is guaranteed to generate the same digital filter that is already extensively tested in MATLAB, we are able to save a great deal of time in design and especially debugging of the filter core itself.
 The time saved is put to use in performing the integration of the filter with the rest of the system, and especially in developing the custom memory controller described in Section~\ref{sub:hardware_implementation} and \ref{sub:tuning_for_speed}.
 
-\begin{figure}[htbp]
+This tool provides us with a Verilog source file with the interface as shown in Figure~\ref{fig:Hdsdsos_interface}. The filter input and outputs are signed 16 bit integer representation with no fractional parts, as required.
+
+The HDL generation tool can also generate a second type of interface, one specifically designed to be capable of interfacing to a CPU for loading custom coefficients. However, due to the optimisations described in Section~\ref{sub:timing_analysis}, we elected to use hard-wired coefficients.
+That is, the filter design tool cannot assume that the overall gain of the filter is unity when electing to supply coefficients from the processor interface.
+
+However, it is possible to modify four (and with some modifications, five) out of the six coefficients while still maintaining the speed advantage. This design alteration is described in Section~\ref{sub:timing_analysis}, but we did not have time to implement it.
+As such, while it would be possible to have a fast system with variable coefficients, the system as it stands, has hard-wired coefficients.
+
+\begin{figure}[bt]
 	\begin{center}
 		\begin{lstlisting}[language = Verilog]
 module Hdsdsos_copy_hardwired
@@ -305,33 +329,7 @@ output  signed [15:0] filter_out; //sfix16
 	\label{fig:Hdsdsos_interface}
 \end{figure}
 
-This tool provides us with a Verilog source file with the interface as shown in Figure~\ref{fig:Hdsdsos_interface}. The filter input and outputs are signed 16 bit integer representation with no fractional parts, as required.
-
-The HDL generation tool can also generate a second type of interface, one specifically designed to be capable of interfacing to a CPU for loading custom coefficients. However, due to the optimisations described in Section~\ref{sub:timing_analysis}, we elected to use hard-wired coefficients.
-That is, the filter design tool cannot assume that the overall gain of the filter is unity when electing to supply coefficients from the processor interface.
-
-However, it is possible to modify four (and with some modifications, five) out of the six coefficients while still maintaining the speed advantage. This design alteration is described in Section~\ref{sub:timing_analysis}, but we did not have time to implement it.
-As such, while it would be possible to have a fast system with variable coefficients, the system as it stands, has hard-wired coefficients.
-
 % subsection filter_implementation (end)
-
-\begin{landscape}
-\begin{figure}[p]
-	\begin{center}
-		\includegraphics[width = 1.45\textwidth]{DSDNotch.pdf}
-	\end{center}
-	\caption{Block diagram of the Notch Filter hardware. FIFO buffers are used to allow efficient interleaved reads and writes to SDRAM. The buffers also serve as Clock Domain Crossing interfaces.}
-	\label{fig:DSDNotch}
-\end{figure}
-\end{landscape}
-
-\begin{figure}[htbp]
-	\begin{center}
-		\includegraphics[width = 0.3\textwidth]{fifoBlock.PNG}
-	\end{center}
-	\caption{Block diagram of the First In First Out buffers used for both data buffering and Clock Domain Crossing.}
-	\label{fig:fifoblock}
-\end{figure}
 
 \subsection{Hardware Implementation} % (fold)
 \label{sub:hardware_implementation}
@@ -361,13 +359,32 @@ These FIFO blocks support different clocks on the read and write ports. Thus the
 
 The core of the filter is limited to operating at 80MHz, while the rest of the system operates at 160MHz (see Section~\ref{sub:timing_analysis} for a detailed timing analysis). This means that even though the memory access is interleaved and cannot fetch one new word every clock cycle on average, the filter can still operate at almost full saturation.
 
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = 0.3\textwidth]{fifoBlock.PNG}
+	\end{center}
+	\caption{Block diagram of the First In First Out buffers used for both data buffering and Clock Domain Crossing.}
+	\label{fig:fifoblock}
+\end{figure}
+
+\begin{landscape}
+\begin{figure}[p]
+	\begin{center}
+		\includegraphics[width = 1.45\textwidth]{DSDNotch.pdf}
+	\end{center}
+	\caption{Block diagram of the Notch Filter hardware. FIFO buffers are used to allow efficient interleaved reads and writes to SDRAM. The buffers also serve as Clock Domain Crossing interfaces.}
+	\label{fig:DSDNotch}
+\end{figure}
+\end{landscape}
+
+
 % subsection hardware_implementation (end)
 
 
 \subsection{Timing analysis} % (fold)
 \label{sub:timing_analysis}
 
-\begin{figure}[htbp]
+\begin{figure}[tbp]
 	\begin{center}
 		\includegraphics[width = 0.8\textwidth]{DirectFormIITransposedCritpath.pdf}
 	\end{center}
@@ -395,7 +412,7 @@ Moreover, as the FIFO buffers are used as Clock Domain Crossing interfaces, ther
 That is, as the clock frequency ratio is an exact integer, in this case two, the clock edges should always line up, and no metastability should be possible.
 Nevertheless, the FIFO buffers are set-up to use two stage synchroniser stages to synchronise operation. While this may be overkill for the purposes of eliminating metastability, it does allow register re-timing to have more freedom to optimise the circuit.  
 
-\begin{table}[htbp]
+\begin{table}[tbp]
 	\caption{Timing performance of the system at various operating conditions.}
 	\label{tab:fmax}
 	\begin{center}
@@ -436,6 +453,11 @@ Thus, are were able meet the timing requirements for operation at the target clo
 \subsection{Performance Results} % (fold)
 \label{sub:performance_results}
 
+The performance of the filter is benchmarked by executing a complete filtering pass of the filter, and observing a dedicated cycle-counting register. This register is simply reset at the start of the filtering operation and will increment every cycle until the filtering operation is complete.
+
+Due to the efficiency of the custom bursting interleaved memory access controller, operating at twice the clock frequency of the filter core, as described in Section~\ref{sub:hardware_implementation}, we are able to exceed 90\% saturation of the filter core.
+Thus, as the sampling rate of the data is 44.1 KHz, we are able to exceed 1600 times real-time performance.
+
 \begin{table}[htbp]
 	\caption{Performance results of the Notch Filter module.}
 	\label{tab:performance_results}
@@ -462,17 +484,22 @@ Thus, are were able meet the timing requirements for operation at the target clo
 	\end{center}
 \end{table}
 
-The performance of the filter is benchmarked by executing a complete filtering pass of the filter, and observing a dedicated cycle-counting register. This register is simply reset at the start of the filtering operation and will increment every cycle until the filtering operation is complete.
-
-Due to the efficiency of the custom bursting interleaved memory access controller, operating at twice the clock frequency of the filter core, as described in Section~\ref{sub:hardware_implementation}, we are able to exceed 90\% saturation of the filter core.
-Thus, as the sampling rate of the data is 44.1 KHz, we are able to exceed 1600 times real-time performance.
-
 % subsection performance_results (end)
 
 \subsection{Resource Utilisation} % (fold)
 \label{sub:resource_utilisation}
 
-\begin{table}[htbp]
+We chose to favour speed for this design as it makes for the most interesting optimisation trade-offs. That is, it is only when pressing for speed that one is required to think very hard about the critical path and the effects of pipe-lining.
+Furthermore, as the device has more than 22 thousand logic elements, we found it was only natural to favour speed over area as the target device has a lot of spare resources.
+That is, this filter module only consumes slightly over 5\% of the resources available in the device.
+
+Outlined in Table~\ref{tab:resource_util_notch} is the resource utilisation per entity of the notch filter module.
+The first thing to note is that we use a large number of logic cells and registers. This is primarily due to the fact that the synthesis optimisations are weighted towards speed.
+Furthermore, register duplication, a physical synthesis optimisation, is enabled. That is, to enable register re-timing for high fanout signals, we allow for automatic generation of extra registers post-fanout.
+
+An interesting note is that , as seen in Figure~\ref{fig:df2tCritpath}, we only require three multipliers. However, as the multipliers are arranged in pairs on this FPGA architecture, we end up using the next even number of multipliers, which in this case is four.
+
+\begin{table}[tbp]
 	\caption{Resource Utilisation of the Notch Filter module.}
 	\label{tab:resource_util_notch}
 	\begin{center}
@@ -496,22 +523,12 @@ Thus, as the sampling rate of the data is 44.1 KHz, we are able to exceed 1600 t
 	\end{center}
 \end{table}
 
-We chose to favour speed for this design as it makes for the most interesting optimisation trade-offs. That is, it is only when pressing for speed that one is required to think very hard about the critical path and the effects of pipe-lining.
-Furthermore, as the device has more than 22 thousand logic elements, we found it was only natural to favour speed over area as the target device has a lot of spare resources.
-That is, this filter module only consumes slightly over 5\% of the resources available in the device.
-
-Outlined in Table~\ref{tab:resource_util_notch} is the resource utilisation per entity of the notch filter module.
-The first thing to note is that we use a large number of logic cells and registers. This is primarily due to the fact that the synthesis optimisations are weighted towards speed.
-Furthermore, register duplication, a physical synthesis optimisation, is enabled. That is, to enable register re-timing for high fanout signals, we allow for automatic generation of extra registers post-fanout.
-
-An interesting note is that , as seen in Figure~\ref{fig:df2tCritpath}, we only require three multipliers. However, as the multipliers are arranged in pairs on this FPGA architecture, we end up using the next even number of multipliers, which in this case is four.
-
 % subsection resource_utilisation (end)
 
 \subsection{Operation} % (fold)
 \label{sub:operation}
 
-\begin{figure}[htbp]
+\begin{figure}[btp]
 	\begin{center}
 		\includegraphics[width = \textwidth]{linkersections.PNG}
 	\end{center}
