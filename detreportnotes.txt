@@ -1,0 +1,50 @@
+1) Theory
+	- PLU algorithm pseudocode, complexity O(n^3) vs death for laplace expansion, lends itself well to hardware implementations (link/copypaste http://www.eecg.toronto.edu/~weizer/LUgen/WeiZhang.pdf)
+
+[not sure whether this section is needed or not] number between 1 and 2) Key points of the design
+- memory mapped
+- irq/isr return 	
+- scales well!!!
+- 2x2 to 32x32 purely in HW!!!
+	
+2) High level overview of implementation
+2.1) Interface overview (memory mapped input, interrupt as output, isr and driver layer on the software side) [Processor free to do anything while det is being computed as a result]
+
+2.2) Operation: 
+initial step is to set up the isr and register it with the irq number, then the determinant is computed as:
+
+call software layer driver, which in turn:
+	- flushes dcache (needed for fast processor, yadayada), talk about cache coherency and tight memory tagging if you wish to
+	- does two direct io writes to the regs of det block with a) memptr, b) mxsize
+
+hardware sees write to its registers, starts operation:
+-) custom DMA block transfers matrix to local m9ks 
+-) PLU decomposition runs (still talking high-level atm, so only general stuff needs to be mentioned), returns determinant or an !early termination! with singular return
+-) irq is raised high
+-) isr runs, sets proper flag
+-) whenever the cpu decides to check the state, it just looks at the flag
+
+3) Details of implementation:
+3.1) details of DMA, (talk about bursting and/or cache here if you have time, is a good point to make)
+
+3.1.5) Make sure to talk about the memory layout being always a square, and hardware rowptr regs that rotate being const (0,32,64...). Is smart.
+
+3.1.7) rotational hardware to put alpha nonzero and check whether matrix is singular
+
+3.2) details of the PLU hardware
+- pipeline, etc
+- insight: can preload row/col/alpha and then 2 ports of memory is sufficient for max throughput with one ram
+- 100% pipeline utilisation
+- 3 floating point instructions per cycle
+
+
+
+4) performance
+
+-)plots of the det block's scaling being proper awesome
+
+-) critical path, limiting part of the design, fmax
+
+5) Resource usage/etc
+-) if we need to do bigger matrices, ONLY thing we need is: more m9ks (plus some +1 bits to counters and bigger row/col preload register, but still extremely small amount of logic/register usage increase). If size becomes too big to fit in m9ks, talk about switching to a block LU decomposition instead. But overall, main point is that we don't need huge changes to the design, it can cope with any size in theory.
+

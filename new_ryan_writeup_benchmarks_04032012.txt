@@ -1,0 +1,55 @@
+test setup:
+
+nios s (medium)
+2 kB instruction cache
+no data cache
+no hw multipliers
+instructions residing in sdram
+
+-------------
+
+the matrix algorithm is constant for each size: 49 KB
+
+
+-------------
+o3:
+3x3: 0.940		/ 	1000
+6x6: 6.6		/ 	1000
+8x8: 15.3		/ 	1000
+10x10: 30.1		/ 	1000
+20x20: 231.75 	/ 	1000
+
+-------------
+
+adding hw multipliers:
+
+o3:
+3x3: 0.470		/ 	1000
+6x6: 3.15		/ 	1000
+8x8: 8.0		/ 	1000
+10x10: 14.4		/ 	1000
+20x20: 115.5	/	1000
+
+
+------------
+
+skipped fast, cached, 160 MHz
+
+------------
+actual best methodology would be to benchmark against floating point custom instruction module provided by altera
+------------
+
+adding our custom floating point instruction:
+note: no fpdiv in custom insn, uses default implementation
+
+speedup seen due to no more software emulation of fp instructions (i.e. not just multiplying mantissa and doign rest in software)
+
+o3:
+3x3: 0.122		/	1000
+6x6: 0.468		/ 	1000
+8x8: 0.984		/ 	1000
+10x10: 1.450	/ 	1000
+20x20: 7.8 		/	1000
+
+
+------------

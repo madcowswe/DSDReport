@@ -33,6 +33,7 @@
 \usepackage{color} %for colored syntax highligting
 \usepackage{rotating}
 \usepackage{pdflscape}
+\usepackage{algorithm2e}
 
 %%% Code listing
 \definecolor{mygreen}{rgb}{0,0.6,0}
@@ -67,7 +68,7 @@ breakatwhitespace=true
 %\renewcommand{\cftsecfont}{\rmfamily\mdseries\upshape}
 %\renewcommand{\cftsecpagefont}{\rmfamily\mdseries\upshape} % No bold!
 \usepackage{hyperref} % use hyperlinked ToC
-\hypersetup{colorlinks=true, linkcolor=black}
+\hypersetup{colorlinks=true, linkcolor=black, citecolor=black, filecolor=black, urlcolor=black}
 
 %%%-------------------------------------------------------------------
 
@@ -95,6 +96,54 @@ breakatwhitespace=true
 
 \section{Determinant Calculation Hardware Accelerator} % (fold)
 \label{sec:determinant_calculation_hardware_accelerator}
+
+
+
+
+\subsection{Theory} % (fold)
+\label{sub:theory}
+
+\begin{algorithm}[H]
+	\SetAlgoLined
+
+	\KwData{N x N matrix: A}
+	\KwResult{Determinant}
+
+	\For{k = 1 \KwTo N - 1}{
+		
+		\While{$a_{k,k} = 0$}{
+			rotate rows $k$ to $N$\;
+			\If{number of rotations = k}{
+				determinant $\leftarrow 0$ \\
+				return;
+			}
+		}
+
+		\For{i = k + 1 \KwTo N}{
+			$a_{i,k} \leftarrow a_{i,k}/a_{k,k}$
+		}
+
+		\For{j = k+1 \KwTo N}{
+			\For{i = k+1 \KwTo N}{
+				$a_{i,j} \leftarrow a_{i,j} - a_{i,k} \times a_{k,j}$
+			}
+		}
+	}
+
+	determinant $\leftarrow \prod_{k=1}^N a_{k,k}$
+	\bigskip
+
+	\caption{The Doolittle Algorithm for computing the LU factorisation of a matrix, as found in \cite{LUgen}, but modified to compute the determinant, and include pivoting.}
+\end{algorithm}
+
+% subsection theory (end)
+
+
+
+
+
+
+
 
 \begin{table}[htbp]
 	\caption{Resource Utilisation of the Determinant module. Note that two fp\_mul units are used.}
@@ -124,7 +173,7 @@ breakatwhitespace=true
 	\begin{center}
 		\includegraphics[width = 0.8\textwidth]{DeterminantPipeline.pdf}
 	\end{center}
-	\caption{Block diagram of the hardware implementation of the Doolittle Algorithm.}
+	\caption{Block diagram of the hardware implementation of the Doolittle Algorithm. The number above the arithmetic blocks indicate latency.}
 	\label{fig:det_block}
 \end{figure}
 
@@ -149,7 +198,7 @@ The module is capable of Direct Memory Access, and includes optimisations for ef
 
 Several different types of filter topologies are considered. Firstly, it is clear that as a 2nd order IIR filter meets the specification, it would be rather inappropriate to implement the same filter as an FIR filter. To get the same sharp transition band using an FIR filter, we would have to use over 10,000 taps. This metric is generated using MATLAB's Parks-McClellan optimal equiripple FIR order estimator; the MATLAB command and result can be seen in Figure~\ref{fig:firpmord}.
 
-\begin{figure}[htbp]
+\begin{figure}[bp]
 	\begin{center}
 		\begin{lstlisting}[language = Matlab]
 beethmax = max(abs(fft(beeth5_noise)));
@@ -175,6 +224,14 @@ The magnitude of the resulting filter can been seen in Figure~\ref{fig:matlabmag
 	\end{center}
 	\caption{Magnitude response of both the full (double) precision and the quantised filter. The gain is negative infinity dB at 1 kHz.}
 	\label{fig:matlabmagnitudelog}
+\end{figure}
+
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = \textwidth]{matlabmagnitude2.PNG}
+	\end{center}
+	\caption{Magnitude response of both the full (double) precision and the quantised filter. The quantised and reference filters differ with less than 0.02dB in the passband.}
+	\label{fig:matlabmagnitudezoom}
 \end{figure}
 
 % subsection filter_design (end)
@@ -207,7 +264,7 @@ Thus, for the critical path is constant for any order of the filter, and in all 
 
 % subsection filter_topology (end)
 
-\begin{table}[htb]
+\begin{table}[tbp]
 	\begin{center}
 		\begin{lstlisting}
    FilterStructure: 'Direct-Form II Transposed, Second-Order Sections'
@@ -263,7 +320,7 @@ Furthermore, as the coefficients are 18 bits, and the input is 16 bits, the rest
 Finally, we must consider where to place the binary point in the fixed point representation. As this is a hardware implementation, shifts of the binary point are free. In order to scale the binary point, we used the command \verb"Hdsdsos = autoscale(Hdsdsos, x)" from the digital filter toolbox in MATLAB.
 This command will automatically scale the binary point of the different stages of the filter. It uses the provided input (in this case a 16 bit signed integer sample of the noisy music) to scale the binary point to include as much precision as possible while still avoiding overflow. The result of the operation can be seen in Figures~\ref{tab:Hdsdsos} and \ref{tab:fixedpoint_report}.
 
-\begin{table}[htbp]
+\begin{table}[tbp]
 	\begin{center}
 		\begin{lstlisting}
                                Fixed-Point Report                                          
@@ -306,7 +363,7 @@ That is, the filter design tool cannot assume that the overall gain of the filte
 However, it is possible to modify four (and with some modifications, five) out of the six coefficients while still maintaining the speed advantage. This design alteration is described in Section~\ref{sub:timing_analysis}, but we did not have time to implement it.
 As such, while it would be possible to have a fast system with variable coefficients, the system as it stands, has hard-wired coefficients.
 
-\begin{figure}[bt]
+\begin{figure}[tbp]
 	\begin{center}
 		\begin{lstlisting}[language = Verilog]
 module Hdsdsos_copy_hardwired
@@ -359,13 +416,22 @@ These FIFO blocks support different clocks on the read and write ports. Thus the
 
 The core of the filter is limited to operating at 80MHz, while the rest of the system operates at 160MHz (see Section~\ref{sub:timing_analysis} for a detailed timing analysis). This means that even though the memory access is interleaved and cannot fetch one new word every clock cycle on average, the filter can still operate at almost full saturation.
 
-\begin{figure}[htbp]
+\begin{figure}[!b]
 	\begin{center}
 		\includegraphics[width = 0.3\textwidth]{fifoBlock.PNG}
 	\end{center}
 	\caption{Block diagram of the First In First Out buffers used for both data buffering and Clock Domain Crossing.}
 	\label{fig:fifoblock}
 \end{figure}
+
+\begin{figure}[!b]
+	\begin{center}
+		\includegraphics[width = \textwidth]{notchfilter_read_and_write_cropped.png}
+	\end{center}
+	\caption{Simulated interleaved operation of the filter. Note that both Clock Domains are simulated at 50MHz for clarity.}
+	\label{fig:interleaved_sim}
+\end{figure}
+
 
 \begin{landscape}
 \begin{figure}[p]
@@ -460,7 +526,7 @@ Thus, as the sampling rate of the data is 44.1 KHz, we are able to exceed 1600 t
 
 \begin{table}[htbp]
 	\caption{Performance results of the Notch Filter module.}
-	\label{tab:performance_results}
+	\label{tab:notch_performance_results}
 	\begin{center}
 		\begin{tabular}{l|rl}
 		\hline
@@ -485,6 +551,7 @@ Thus, as the sampling rate of the data is 44.1 KHz, we are able to exceed 1600 t
 \end{table}
 
 % subsection performance_results (end)
+
 
 \subsection{Resource Utilisation} % (fold)
 \label{sub:resource_utilisation}
@@ -572,6 +639,56 @@ dump binary memory <file> <start_addr> <end_addr>
 
 % subsection operation (end)
 
+\subsection{Operational Results} % (fold)
+\label{sub:operational_results}
+
+We verify the operation of the hardware in both simulation and in hardware.
+Shown in Figure~\ref{fig:notch_sim} are the simulation results of filtering during the first couple of microseconds of the operation of the filter. This represents several thousand data samples.
+This filter response matches the expected response, and also matches the response generated in hardware, as shown in Figure~\ref{fig:short_hardware_output}.
+Shown in Figure~\ref{fig:notch_output} is the entire music sample after filtering. By a simple listening test, we also verify that no trace of the 1 kHz sine wave can be perceived.
+
+
+\begin{figure}[b]
+	\begin{center}
+		\includegraphics[width = \textwidth]{Notch_proper_data_cropped.png}
+	\end{center}
+	\caption{Simulation of filter in operation.}
+	\label{fig:notch_sim}
+\end{figure}
+
+\begin{figure}[p]
+	\begin{center}
+		\includegraphics[width = \textwidth]{initaldatabackfromboard.PNG}
+	\end{center}
+	\caption{First 2048 output samples generated on hardware.}
+	\label{fig:short_hardware_output}
+\end{figure}
+
+\begin{figure}[p]
+	\begin{center}
+		\includegraphics[width = \textwidth]{Notch_filtered_from_hardware.PNG}
+	\end{center}
+	\caption{Output after filtering on hardware.}
+	\label{fig:notch_output}
+\end{figure}
+
+% subsection operational_results (end)
+
+\subsection{Future Improvements} % (fold)
+\label{sub:future_improvements}
+
+
+
+% subsection future_improvements (end)
+
 % section notch_filter (end)
+
+\clearpage
+
+\begin{thebibliography}{9}
+	\bibitem{LUgen}
+	Wei Zhang,
+	\emph{Portable and Scalable FPGA-Based Acceleration of a Direct Linear System Solver}. \url{http://www.eecg.toronto.edu/~weizer/LUgen/WeiZhang.pdf}
+\end{thebibliography}
 
 \end{document}
