@@ -33,7 +33,7 @@
 \usepackage{color} %for colored syntax highligting
 \usepackage{rotating}
 \usepackage{pdflscape}
-\usepackage{algorithm2e}
+\usepackage[]{algorithm2e}
 
 %%% Code listing
 \definecolor{mygreen}{rgb}{0,0.6,0}
@@ -89,21 +89,81 @@ breakatwhitespace=true
 \tableofcontents
 \clearpage
 
+
+
 \section{Floating Point Hardware} % (fold)
 \label{sec:floating_point_hardware}
 
+
+\begin{table}[tbp]
+	\caption{Hardware setup for the floating point performance measurements.}
+	\label{tab:fp_hw_setup}
+	\begin{center}
+		\begin{tabular}{r|l}
+		\hline
+
+		\hline
+			\textbf{Processor Type} 	& Nios II Standard \\
+		\hline
+			\textbf{Instruction Cache}	& 2 kB \\
+		\hline
+			\textbf{Data Cache}			& none \\
+		\hline
+			\textbf{Clock Speed}		& 50 MHz \\
+		\hline
+
+		\hline
+		\end{tabular}
+	\end{center}
+\end{table}
+
+
+\begin{table}[tbp]
+	\caption{Performance comparison of software determinant calculation for various hardware configurations and matrix sizes. The algorithm used is based on LU decomposition and the hardware is set up as shown in Table~\ref{tab:fp_hw_setup}. Entries are time in milliseconds per matrix.}
+	\label{tab:sw_perf}
+	\begin{center}
+		\begin{tabular}{r|ccccc}
+		\hline
+
+		\hline
+			& \textbf{3x3}	& \textbf{6x6}	& \textbf{8x8}	& \textbf{10x10}	& \textbf{20x20} \\ 
+		\hline
+			\textbf{No hardware multipliers}
+			& 0.940			& 6.6			& 15.3			& 30.1				& 231.75 \\
+		\hline
+			\textbf{Embedded multipliers}
+			& 0.470			& 3.15			& 8.0			& 14.4				& 115.5 \\
+		\hline
+			\textbf{Custom floating-point instructions}
+			& 0.122			& 0.468			& 0.984			& 1.450				& 7.8 \\
+		\hline
+
+		\hline
+		\end{tabular}
+	\end{center}
+\end{table}
+
+the matrix algorithm is constant for each size: 49 KB
+
+
+
+
+
 % section floating_point_hardware (end)
+
+
+
+
 
 \section{Determinant Calculation Hardware Accelerator} % (fold)
 \label{sec:determinant_calculation_hardware_accelerator}
 
-
-
+PUT INTRODUCTION HERE!
 
 \subsection{Theory} % (fold)
 \label{sub:theory}
 
-\begin{algorithm}[H]
+\begin{algorithm}[htbp]
 	\SetAlgoLined
 
 	\KwData{N x N matrix: A}
@@ -133,14 +193,28 @@ breakatwhitespace=true
 	determinant $\leftarrow \prod_{k=1}^N a_{k,k}$
 	\bigskip
 
-	\caption{The Doolittle Algorithm for computing the LU factorisation of a matrix, as found in \cite{LUgen}, but modified to compute the determinant, and include pivoting.}
+	\caption{The Doolittle Algorithm for computing the LU decomposition of a matrix, as found in \cite{LUgen}, but modified to compute the determinant, and include pivoting.}
+	\label{alg:doolittle}
 \end{algorithm}
+
+This hardware module uses a modified version of the Doolittle Algorithm to compute the determinant of a matrix.
+We implement a 
 
 % subsection theory (end)
 
+\subsection{Interface Overview} % (fold)
+\label{sub:interface_overview}
 
 
 
+% subsection interface_overview (end)
+
+
+
+\subsection{Scalability} % (fold)
+\label{sub:scalability}
+
+% subsection scalability (end)
 
 
 
@@ -177,8 +251,65 @@ breakatwhitespace=true
 	\label{fig:det_block}
 \end{figure}
 
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = \textwidth]{detcubicresult.PNG}
+	\end{center}
+	\caption{Benchmark results of the determinant hardware. Plotted in blue are the data points, and shown in red is a cubic regression, detailed in Table~\ref{tab:polyfit_coeffs}.}
+	\label{fig:det_bench_results}
+\end{figure}
+
+\begin{table}[htbp]
+	\caption{The result of the cubic regression shown in Figure~\ref{fig:det_bench_results}.}
+	\label{tab:polyfit_coeffs}
+	\begin{center}
+		\begin{tabular}{l|cccc}
+		\hline
+
+		\hline
+			& \textbf{$N^3$} & \textbf{$N^2$} & \textbf{$N$} & \textbf{$1$}\\
+		\hline
+			\textbf{Time} (ns)
+			& 6.49 	& 236	& 490	& 17100 \\
+		\hline
+			\textbf{Time} (cycles)
+			& 0.324 & 11.8 	& 24.5 	& 855 \\
+
+		\hline
+		\end{tabular}
+	\end{center}
+\end{table}
 
 
+reffering to Algorithm~\ref{alg:doolittle}, we can identify the expected growth of different parts of the algorithm.
+
+\begin{table}[htbp]
+	\caption{Expected complexity of various operations in LU decomposition. Note that element multiplication and subtraction are pipelined and do not add.}
+	\label{tab:expected_complexity}
+	\begin{center}
+		\begin{tabular}{l|c}
+		\hline
+
+		\hline
+			\textbf{Element multiplication} 	& $N^3/2$ \\
+		\hline
+			\textbf{Element subtraction} 		& $N^3/2$ \\
+		\hline
+			\textbf{Matrix memory copy} 		& $N^2$ \\
+		\hline
+			\textbf{Pipeline flushes} 			& $N$ \\
+		\hline
+			\textbf{Division latency} 			& $N$ \\
+		\hline
+			\textbf{Diagonal multiplication} 	& $N$ \\
+		\hline
+			\textbf{Interrupt latency}			& 1 \\
+		\hline
+		
+		\hline
+		\end{tabular}
+	\end{center}
+\end{table}
 
 
 % section determinant_calculation_hardware_accelerator (end)
@@ -319,6 +450,9 @@ Furthermore, as the coefficients are 18 bits, and the input is 16 bits, the rest
 
 Finally, we must consider where to place the binary point in the fixed point representation. As this is a hardware implementation, shifts of the binary point are free. In order to scale the binary point, we used the command \verb"Hdsdsos = autoscale(Hdsdsos, x)" from the digital filter toolbox in MATLAB.
 This command will automatically scale the binary point of the different stages of the filter. It uses the provided input (in this case a 16 bit signed integer sample of the noisy music) to scale the binary point to include as much precision as possible while still avoiding overflow. The result of the operation can be seen in Figures~\ref{tab:Hdsdsos} and \ref{tab:fixedpoint_report}.
+
+It should be noted that the aforementioned automatic scaling will optimise the filter for a representative input. Therefore, it will by design not guarantee the absence of overflow for any input. That is, if the filter were exposed to very extreme inputs, such as rail-to-rail amplitude signal, especially containing 1kHz, it would overflow.
+To make a more robust filter, one could either over-estimate the range required by the binary-point placement, or implement saturating arithmetic. The trade-off is that the former will introduce more noise, while the latter will increase the critical path.
 
 \begin{table}[tbp]
 	\begin{center}
@@ -565,6 +699,9 @@ The first thing to note is that we use a large number of logic cells and registe
 Furthermore, register duplication, a physical synthesis optimisation, is enabled. That is, to enable register re-timing for high fanout signals, we allow for automatic generation of extra registers post-fanout.
 
 An interesting note is that , as seen in Figure~\ref{fig:df2tCritpath}, we only require three multipliers. However, as the multipliers are arranged in pairs on this FPGA architecture, we end up using the next even number of multipliers, which in this case is four.
+
+Also, we note that one way to cut down on the use of scarce resources, such as multiplier blocks, would be to use constant coefficient multipliers that are constructed out of adder trees. However, while there was not enough time to implement this interface, we intended the notch filter to accept new coefficients from the CPU.
+Thus, to facilitate this feature, we are forced to use real multiplier blocks.
 
 \begin{table}[tbp]
 	\caption{Resource Utilisation of the Notch Filter module.}

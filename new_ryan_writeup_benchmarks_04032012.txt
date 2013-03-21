@@ -5,6 +5,7 @@ nios s (medium)
 no data cache
 no hw multipliers
 instructions residing in sdram
+50 mhz
 
 -------------
 
