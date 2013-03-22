@@ -26,10 +26,10 @@
 *.nls
 *.out
 *.pdfsync
-*.pdf
 *.ps
 *.snm
 *.synctex.gz
 *.toc
 *.vrb
 Thumbs.db
+DSDReport.pdf
