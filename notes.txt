@@ -1,0 +1,278 @@
+DE2_70:sdram
+
+3x3 toms O0 10k 8.582
+6x6 toms O0 1k 2.97
+8x8 toms o0 1k 5.666
+10x10 toms o0 1k 9.189
+20x20 toms o0 1k 40.872
+
+the matrix algorithm is constant for each size
+it is:39 KBytes program size
+Most of it is for the librarys required for printing floats (at least 15k)
+
+----
+DE0
+----
+
+Size: 37KB. same comment as above.
+
+No hardware multiply:
+LE: 2,728 / 15,408 ( 18 % )
+COMB: 2,519 / 15,408 ( 16 % )
+regs: 1,655 / 15,408 ( 11 % )
+memory bits: 29,248 / 516,096 ( 6 % )
+
+3x3 toms O0 10k 9.775
+6x6 toms O0 5k 15.656
+8x8 toms O0 1k 5.885
+10x10 toms O0 1k 9.529
+20x20 toms O0 1k 41.519
+
+
+
+embedded multipliers:
+LE: 2,934 / 15,408 ( 19 % )
+Comb: 2,709 / 15,408 ( 18 % )
+regs: 1,903 / 15,408 ( 12 % )
+mem: 29,248 / 516,096 ( 6 % )
+9x9mults: 4 / 112 ( 4 % )
+
+performance:
+3x3 toms O0 10k 5.879
+6x6 toms O0 5k 13.960
+8x8 toms O0 1k 5.408
+10x10 toms O0 1k 8.994
+20x20 toms O0 1k 40.457
+
+O0 code size 37KB
+
+LE multiplier:
+LE: 3,090 / 15,408 ( 20 % )
+comb: 2,852 / 15,408 ( 19 % )
+regs: 1,936 / 15,408 ( 13 % )
+mem: 29,248 / 516,096 ( 6 % )
+
+performance:
+3x3 toms O0 10k 5.879
+6x6 toms O0 5k 13.961
+8x8 toms O0 1k 5.408
+10x10 toms O0 1k 8.994
+20x20 toms O0 1k 40.457
+
+code size 37KB
+
+
+
+from now on: embedded multiplier
+
+using PLL (50MHz) and adding timing constraints: most likely not smart enough to not put in clock domain crossing logic from DRAM. Clocking very fast and/or using a data chche will hopefully offset the delays.
+10x10 toms O2 1k 9.187
+10x10 toms O0 1k 14.108
+
+2KB Data chache used (still 50MHz):
+10x10 toms O2 1k 5.949
+
+Data cache makes a big difference when using CDC, so we will use it, dispite some resource hit.
+LE: 4,260 / 15,408 ( 28 % )
+Comb: 3,506 / 15,408 ( 23 % )
+Regs: 2,908 / 15,408 ( 19 % )
+mem: 47,616 / 516,096 ( 9 % )
+9x9mult: 4 / 112 ( 4 % )
+
+
+Setting up TimeQuest Timing Analysis with custom plls using the GUI and "Derive PLL Clocks"
+Now using 160MHz DRAM (DRAM Fmax = 166MHz from datasheet), 200MHz system clock:
+Timing violation: Cpu system Fmax = 172MHz.
+To avoid clock domain crossing, run entire system at 160 MHz (because the system wont run much quicker anyway)
+
+CPU and DRAM @ 160MHz:
+10x10 toms O2 1k 0.991
+
+Thus CDC adds a x2 performance hit.
+
+----
+Implementing Determinant module
+----
+
+When generating component for qsys, the following error was encountered http://www.altera.co.uk/support/kdb/solutions/rd05272012_45.html
+the workaround was to only allow it a 30/32 bits for the address of the Avalon master
+
+Setting up modelsim simulation of system unsucsessful due to PLL not simulating properly. Therefore we will drop PLL from project for now, and as such the development will be at 50MHz
+
+---
+Design of det module
+---
+See diagram for design
+Using custom instructions to interface with processor as the flow control is implemented nicely as a function return value
+
+Design considerations:
+
+for 16x16: 4port mem for mat data: 4 m9ks
+for 16x16: instruction fifo/ram: 1 m9k
+
+for 32x32: 4port mem for mat data: 8 m9ks
+for 32x32: instruction fifo/ram: 5 m9ks
+
+ABOVE IS WRONG!! instruction fifo is arbitrary, as laplace expansion is O(n!)
+
+Numerical stability of LU: http://persson.berkeley.edu/18.335/lec12handout6pp.pdf
+
+--
+
+specsheet: http://www.altera.co.uk/literature/ug/ug_altfp_mfug.pdf
+says
+
+div 150MHz @ 33 cycles
+mul 200MHz @ 5 cycles
+add_sub 150MHz @ 7 cycles
+
+Timing analysis data:
+div: 	>160 @ 14 cycles : USE
+		141 @ 6 cycles
+mul:	>176 @ 5 cycles : USE
+sub:	136 @ 7 cycles
+		>176 @ 10 cycles
+		>176 @ 8 cycles : USE
+
+---
+detunit operation:
+	Start DMA (ptr, len) -> success/error
+		write ptr first, operation started by writing len
+	result done interrupt
+	Fetch result () -> result
+
+
+--------
+Notch filter:
+
+Hdsdsos_copy_hardwired: Fmax = 90.5MHz
+Draw: DF2T with registers only on input and output. b0 and b2 are optimized away to 1.
+Therefore: critical path is add, mult, add of input and last delay -> last delay
+
+No great way of making it faster: only way is to do Look-Ahead pipelining: way to complex for these purposes.
+
+Use input AND output fifos as CDC!!
+
+getting data onto system:
+nios2-elf-ld -r -b binary -o beeth.o beeth5_noise.bin
+nios2-elf-objcopy --rename-section .data=beeth beeth.o beethsect.o
+use externs:
+_binary_beeth5_noise_bin_start
+_binary_beeth5_noise_bin_size = 0x001d6490
+_binary_beeth5_noise_bin_end
+
+getting data off system:
+command entered in the GDB console:
+dump binary memory <file> <start_addr> <end_addr>
+i.e.: dump binary memory bethoutdump.bin 0xc00000 (0xc00000 + 0x001d6490)
+
+85 degC
+80.55 MHz
+162.0 MHz
+Metastability MTBF: >1 Billion Years
+
+0 degC
+90.59 MHz
+181.82 MHz
+Metastability MTBF: >1 Billion Years
+
+----
+Performance results:
+Entire music piece filtered in 0.0133317374 seconds
+
+---
+
+TODO: 	Make ryans code presentable
+		Finish notch
+		Do init + det
+		make coeffcients accecible from software
+		make sound hardware
+
+--- Report notes
+
+filter design
+	Implementation in matlab -> export
+	MATLAB diagrams
+	quantization considerations
+	Decide	which	type	of	filter	you	are	going	to	implement.	FIR	or	IIR?	Justify	your	decision
+
+implementation
+	CDC FIFO, metastab and integer PPL ratio: Very safe, 2 because of speed (weigh up for ack style)
+		screenshot of wizard interface
+
+performance and timing (benchmarking)
+	methodology: design constraint file, infer PLL clocks, look at crit path
+	pipelining of address calculation stage
+
+results
+	Hell to the yes
+
+Future improvements
+
+
+-----
+Determinant:
+
+20x20 in 64us (only matrix operations)
+quadratic speedup pic
+
+0.170 ms per 20x20 (software view, with memcpy and irq latency)
+32x32 is 0.485 ms (software view)
+
+{0, 0, 0, 0.0209999997, 0.023, 0.0260000005, 0.0299999993, 0.0350000001, 0.0390000008, 0.0450000018, 0.0520000011, 0.0599999987, 0.0680000037, 0.0780000016, 0.0879999995, 0.100000001, 0.112000003, 0.125, 0.140000001, 0.156000003, 0.172999993, 0.192000002, 0.210999995, 0.231000006, 0.254000008, 0.277999997, 0.303000003, 0.333000004, 0.35800001, 0.388000011, 0.419, 0.451999992, 0.486999989}
+
+No bursting controller: cpu contention: large memory time, large linear component. Obvious future improvement: bursting. (ref notch implementation has bursting)
+
+the software doolittle, with fp customs, was 7.8 ms for 20x20
+
+while there wasnt enough time to test, the block was designed for 160MHz, so 3x quicker: fpblock benchmark
+
+future improvements
+memcpy overhead: cache coherancy with custom cpu cache
+
+----det arithmetic unit speed test
+specsheet: http://www.altera.co.uk/literature/ug/ug_altfp_mfug.pdf
+says
+
+div 150MHz @ 33 cycles
+mul 200MHz @ 5 cycles
+add_sub 150MHz @ 7 cycles
+
+Timing analysis data:
+div: 	>160 @ 14 cycles : USE
+		141 @ 6 cycles
+mul:	>176 @ 5 cycles : USE
+sub:	136 @ 7 cycles
+		>176 @ 10 cycles
+		>176 @ 8 cycles : USE
+
+---
+detunit operation:
+	Start DMA (ptr, len) -> success/error
+		write ptr first, operation started by writing len
+	result done interrupt
+	Fetch result () -> result
+
+
+---  fpcust
+just say it handles:
+nan
++-inf
+0
+1
+properly for all three operations (add/sub/mul), honoring signs and such
+and it does proper combinatorial bypass
+
+bypass_working caption: simulation showing correct combinatorial return of results for: 2.5 + inf = +inf, 2.5 - +inf = -inf; 2.5 * +inf = inf
+
+
+
+----- VIVA NOTES
+
+Range analysis
+why no const coeff mult? -> design for cpu changability
+resource usage analysis
+how do respective parts scale if more)SLASH)less resources are thrown at the design
+	Memory bandwidth with det block
+Ö reiterate on speed of nios 160 MHz
+Ö reiterate on determinant kicking teh butt out of everything
