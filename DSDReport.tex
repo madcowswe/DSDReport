@@ -34,6 +34,7 @@
 \usepackage{rotating}
 \usepackage{pdflscape}
 \usepackage[]{algorithm2e}
+\usepackage{multirow}
 
 %%% Code listing
 \definecolor{mygreen}{rgb}{0,0.6,0}
@@ -130,10 +131,8 @@ breakatwhitespace=true
 		\hline
 			\textbf{No hardware multipliers}
 			& 0.940			& 6.6			& 15.3			& 30.1				& 231.75 \\
-		\hline
 			\textbf{Embedded multipliers}
 			& 0.470			& 3.15			& 8.0			& 14.4				& 115.5 \\
-		\hline
 			\textbf{Custom floating-point instructions}
 			& 0.122			& 0.468			& 0.984			& 1.450				& 7.8 \\
 		\hline
@@ -144,21 +143,24 @@ breakatwhitespace=true
 \end{table}
 
 \begin{table}[tbp]
-	\caption{caption here}
-	\label{fig:figurename}
+	\caption{Resource usage of entire system with different types of multipliers used. Columns are logic elements, combinational functions, registers, memory bits and 9 bit multipliers.}
+	\label{tab:sw_resourceuse}
 	\begin{center}
 		\begin{tabular}{l|cccccc}
 		\hline
 
 		\hline
-			& \textbf{Logic Elements} 	& \textbf{Combinational} 	& \textbf{Registers} 	& \textbf{Memory bits} 	& \textbf{9 bit multipliers} \\
+			& \textbf{LE} 	& \textbf{Comb.} 	& \textbf{Reg.} 	& \textbf{Mem.} 	& \textbf{Mul.} \\
 
 		\hline
 			\textbf{Available resources}
-			& 15,408 	& 15,408 	& 15,408 	& 15,408 	& 516,096 	& 112
-		\hline
+			& 15,408 	& 15,408 	& 15,408	& 516,096 	& 112 \\
 			\textbf{No hardware multipliers}
-			& 
+			& 2,728 	& 2,519 	& 1,655 	& 29,248 	& 0 \\
+			\textbf{Embedded multipliers}
+			& 2,934		& 2,709		& 1,903		& 29,248	& 4 \\
+			\textbf{Logic Element multipliers}
+			& 3,090		& 2,852		& 1,936		& 29,248	& 0 \\
 		\hline
 
 		\hline
@@ -277,11 +279,8 @@ We implement a
 											& \textbf{Entire Module} 	& \textbf{fp\_div} 		& \textbf{fp\_mul}	& \textbf{fp\_sub} 	& \textbf{matrixram} \\
 		\hline
 			\textbf{Logic Cells} 			& 5978						& 404 					& 264 				& 827 				& 0 \\
-		\hline
 			\textbf{Dedicated Registers}	& 3663						& 291 					& 208 				& 426				& 0 \\
-		\hline
 			\textbf{M9K Memory Blocks}		& 11						& 6 					& 0 				& 1 				& 4 \\
-		\hline
 			\textbf{Multiplier Elements}	& 31						& 16 					& 7 				& 0					& 0 \\
 		\hline
 
@@ -318,9 +317,9 @@ We implement a
 		\hline
 			\textbf{Time} (ns)
 			& 6.49 	& 236	& 490	& 17100 \\
-		\hline
 			\textbf{Time} (cycles)
 			& 0.324 & 11.8 	& 24.5 	& 855 \\
+		\hline
 
 		\hline
 		\end{tabular}
@@ -353,6 +352,35 @@ reffering to Algorithm~\ref{alg:doolittle}, we can identify the expected growth 
 			\textbf{Interrupt latency}			& 1 \\
 		\hline
 		
+		\hline
+		\end{tabular}
+	\end{center}
+\end{table}
+
+\begin{table}[tbp]
+	\caption{Timing benchmark results of various versions of the Altera floating point units.}
+	\label{tab:fp_unit_bench}
+	\begin{center}
+		\begin{tabular}{l|cccc}
+		\hline
+
+		\hline
+			& \textbf{Speed} 	& \textbf{Latency} 		& \\
+			& \textbf{(MHz)}		& \textbf{(cycles)} & \\
+		\hline
+			\multirow{2}{*}{\textbf{Division Unit}}
+			& 141		& 6 	&  \\
+			& $>$160 	& 14 	& USE \\
+		\hline
+			\textbf{Multiplication Unit}
+			& $>$176 	& 5 	& USE \\
+		\hline
+			\multirow{3}{*}{\textbf{Subtraction Unit}}
+			& 136 		& 7 	& \\
+			& $>$176 	& 8  	& USE \\
+			& $>$176 	& 10 	& \\
+		\hline
+
 		\hline
 		\end{tabular}
 	\end{center}
@@ -675,9 +703,7 @@ Nevertheless, the FIFO buffers are set-up to use two stage synchroniser stages t
 			 										& $0^\circ$C 					& $85^\circ$C 	\\
 		\hline
 			\textbf{Maximum System Frequency} 		& 181.82 MHz					& 162.0 MHz 	\\
-		\hline
 			\textbf{Maximum Filter Core Frequency}	& 90.59 MHz						& 80.55 MHz 	\\
-		\hline
 			\textbf{Metastability MTBF}				& \textgreater 1 Billion Years	& \textgreater 1 Billion Years \\
 		\hline
 
@@ -769,11 +795,8 @@ However there would be no speed advantage in our case, as our implementation is 
 											& \textbf{Entire Module} 	& \textbf{Filter Core} 	& \textbf{Per FIFO}\\
 		\hline
 			\textbf{Logic Cells} 			& 1278 						& 322 					& 136 \\
-		\hline
 			\textbf{Dedicated Registers}	& 689						& 82 					& 117 \\
-		\hline
 			\textbf{M9K Memory Blocks}		& 2							& 0 					& 2 \\
-		\hline
 			\textbf{Multiplier Elements}	& 4							& 4 					& 0 \\
 		\hline
 
