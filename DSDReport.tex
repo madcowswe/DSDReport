@@ -84,19 +84,30 @@ breakatwhitespace=true
 
 %\renewcommand{\abstractname}{Summary}
 \begin{abstract}
-	Write the abstract here
+
+	This report describes the design considerations and implementation details of the Digital System Design assignment involving two subprojects.
+	The first part concentrates on various methods of adding hardware support to compute arithmetic operations, in particular in computing the determinant of a matrix.
+	A highly optimised hardware accelerator is developed for this purpose, and
+
+	The second part of the project involves the implementation of a streaming filter hardware module.
+	The module is capable of Direct Memory Access, includes optimisations for efficient access to the SDRAM, and uses a buffering and Clock Domain Crossing strategy, to maximise performance.
+	The design process including topology consideraton and a quantisation analysis is presented, and the detailed hardware implentation is described.
+	Further, a considrable timing analysis and several otpimisations to maximise perfomance are presented, and a performance and resouce utilisation analasys is performed. 
+	Finally, we verify the operation of the module and conclude with some suggested improvements.
+
 \end{abstract}
+\clearpage
+
 
 \tableofcontents
 \clearpage
-
 
 
 \section{Floating Point Hardware} % (fold)
 \label{sec:floating_point_hardware}
 
 
-\begin{table}[tbp]
+\begin{table}[bp]
 	\caption{Hardware setup for the floating point performance measurements.}
 	\label{tab:fp_hw_setup}
 	\begin{center}
@@ -119,8 +130,8 @@ breakatwhitespace=true
 \end{table}
 
 
-\begin{table}[tbp]
-	\caption{Performance comparison of software determinant calculation for various hardware configurations and matrix sizes. The algorithm used is based on LU decomposition and the hardware is set up as shown in Table~\ref{tab:fp_hw_setup}. Entries are time in milliseconds per matrix.}
+\begin{table}[bp]
+	\caption{Performance comparison of determinant calculation for various hardware configurations and matrix sizes. The algorithm used is based on LU decomposition and the hardware is set up as shown in Table~\ref{tab:fp_hw_setup}. Entries are time in milliseconds per matrix.}
 	\label{tab:sw_perf}
 	\begin{center}
 		\begin{tabular}{r|ccccc}
@@ -135,6 +146,8 @@ breakatwhitespace=true
 			& 0.470			& 3.15			& 8.0			& 14.4				& 115.5 \\
 			\textbf{Custom floating-point instructions}
 			& 0.122			& 0.468			& 0.984			& 1.450				& 7.8 \\
+			\textbf{Hardware Accelerator}
+			& 0.02 			& 0.03 			& 0.04 			& 0.052 			& 0.17 \\
 		\hline
 
 		\hline
@@ -142,7 +155,7 @@ breakatwhitespace=true
 	\end{center}
 \end{table}
 
-\begin{table}[tbp]
+\begin{table}[bp]
 	\caption{Resource usage of entire system with different types of multipliers used. Columns are logic elements, combinational functions, registers, memory bits and 18 bit multipliers.}
 	\label{tab:sw_resourceuse}
 	\begin{center}
@@ -192,12 +205,20 @@ For example, if any of the operands are NaN, the result is always NaN, so we can
 Trivial or degenerate operations include multiplication by negative or positive unity, zero, negative or positive infinity, or NaN. Addition or subtraction by zero, infinity or NaN is also handled.
 The bypass module honours all combinations of degenerate operations correctly. For example, the combination of the signs of the operands, and doubly degenerate operations such as infinity multiplied by zero, is correctly handled.
 
+\begin{figure}[bp]
+	\begin{center}
+		\includegraphics[width = \textwidth]{detcalcperf.PNG}
+	\end{center}
+	\caption{Performance comparison of determinant calculation for various hardware configurations and matrix sizes.}
+	\label{fig:det_calc_perf}
+\end{figure}
+
 
 % section floating_point_hardware (end)
 
 
 
-
+\clearpage
 
 \section{Determinant Calculation Hardware Accelerator} % (fold)
 \label{sec:determinant_calculation_hardware_accelerator}
@@ -647,7 +668,6 @@ These FIFO blocks support different clocks on the read and write ports. Thus the
 
 Another critical consideration is that once a burst has been initiated, it cannot be aborted \cite{AvalonSpec}.
 Thus, the custom memory access controller will request at most the same number of words that remain unused in the input FIFO, as seen in Figure~\ref{fig:usedwords_burstcount}. The same thing applies to the write requests, the controller only requests to write as much data as is available in the output FIFO.
-%TODO(figure of usedwords -> burstcount)
 
 The core of the filter is limited to operating at 80MHz, while the rest of the system operates at 160MHz (see Section~\ref{sub:timing_analysis} for a detailed timing analysis). This means that even though the memory access is interleaved and cannot fetch one new word every clock cycle on average, the filter can still operate at almost full saturation.
 
@@ -681,6 +701,7 @@ This is deemed to not be a problem in this case, as the CPU performs no real-tim
 
 % subsection hardware_implementation (end)
 
+\clearpage
 
 \subsection{Timing analysis} % (fold)
 \label{sub:timing_analysis}
