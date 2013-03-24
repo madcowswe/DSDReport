@@ -143,7 +143,7 @@ breakatwhitespace=true
 \end{table}
 
 \begin{table}[tbp]
-	\caption{Resource usage of entire system with different types of multipliers used. Columns are logic elements, combinational functions, registers, memory bits and 9 bit multipliers.}
+	\caption{Resource usage of entire system with different types of multipliers used. Columns are logic elements, combinational functions, registers, memory bits and 18 bit multipliers.}
 	\label{tab:sw_resourceuse}
 	\begin{center}
 		\begin{tabular}{l|cccccc}
@@ -168,32 +168,29 @@ breakatwhitespace=true
 	\end{center}
 \end{table}
 
-the matrix algorithm is constant for each size: 49 KB
-
-
 We use a modified version of the Doolittle Algorithm for LU decomposition to compute the determinant. This algorithm is discussed in more detail in Section~\ref{sub:theory}.
+This algorithm has the time complexity of $O(n^3)$ as opposed to $O(n!)$ of Laplace expansion, and is therefore much faster for any matrix larger than 4x4.
+During our benchmarking tests, we saw virtually no change to the code size, which is 49 KB.
+Most of the code space is taken up by support functions such as \verb"printf".
 
+Seen in Table~\ref{tab:fp_hw_setup} is the configuration of the system during testing. The performance results and the resource usage can be seen in Tables~\ref{tab:sw_perf} and \ref{tab:sw_resourceuse} respectively.
+We see an improvement in the runtime of the algorithm when using integer multiplication hardware over software multiplication using shift-and-add.
+The resource penalty of implementing these integer multiplication units depends on the type implemented. When using embedded multiplier blocks, we consume four 18 by 18 multiplier blocks, and only around 200 logic elements.
+Conversely, to implement the multiplication using Logic Elements, we incur a penalty of 400 logic elements.
+Depending on the resource restrictions in the application, either may be better. In general, however, if there are spare multiplier blocks, it is better in terms of resource utilisation to use these as they cannot be used for other purposes.
 
+We see a considerable further improvement to the performance of the algorithm when using dedicated floating point hardware to perform the operations over using software operations.
 When implementing the custom logic blocks for the floating-point arithmetic operations, we elected to use the floating point blocks provided by Altera's Megafunction tools.
 These tools provide a block for implementing floating point multiplication, or addition and subtraction, among many others \cite{megafunc}.
-
-
-%tab:sw_perf
-%tab:sw_resourceuse
-
 
 There are several different versions of these blocks available, with different clock cycle latency and different Fmax. During this phase of the project, the target clock frequency of the system is 50 MHz.
 As such, all of the provided blocks have an Fmax that is higher than the system Fmax. Therefore, we chose the block with the shortest latency and minimum resource usage.
 Particularly when used as a custom instruction for the CPU, latency is much more important than in a pipelined application. This is because the CPU only has a single execution stage and cannot pipeline the execution \cite{Nios}.
 
-
 We implement custom bypass logic that will compute the result of the requested operation in a single clock cycle if the request is "trivial". 
 For example, if any of the operands are NaN, the result is always NaN, so we can bypass the arithmetic module, and we can finish the operation in a single cycle.
-
 Trivial or degenerate operations include multiplication by negative or positive unity, zero, negative or positive infinity, or NaN. Addition or subtraction by zero, infinity or NaN is also handled.
-
 The bypass module honours all combinations of degenerate operations correctly. For example, the combination of the signs of the operands, and doubly degenerate operations such as infinity multiplied by zero, is correctly handled.
-
 
 
 % section floating_point_hardware (end)
