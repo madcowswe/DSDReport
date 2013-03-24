@@ -186,7 +186,7 @@ This algorithm has the time complexity of $O(n^3)$ as opposed to $O(n!)$ of Lapl
 During our benchmarking tests, we saw virtually no change to the code size, which is 49 KB.
 Most of the code space is taken up by support functions such as \verb"printf".
 
-Seen in Table~\ref{tab:fp_hw_setup} is the configuration of the system during testing. The performance results and the resource usage can be seen in Tables~\ref{tab:sw_perf} and \ref{tab:sw_resourceuse} respectively.
+Seen in Table~\ref{tab:fp_hw_setup} is the configuration of the system during testing. The performance results can be seen in Table~\ref{tab:sw_perf} and Figure~\ref{fig:det_calc_perf}, and the resource usage can be seen in Table~\ref{tab:sw_resourceuse}.
 We see an improvement in the runtime of the algorithm when using integer multiplication hardware over software multiplication using shift-and-add.
 The resource penalty of implementing these integer multiplication units depends on the type implemented. When using embedded multiplier blocks, we consume four 18 by 18 multiplier blocks, and only around 200 logic elements.
 Conversely, to implement the multiplication using Logic Elements, we incur a penalty of 400 logic elements.
