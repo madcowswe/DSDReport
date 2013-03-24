@@ -168,12 +168,32 @@ breakatwhitespace=true
 	\end{center}
 \end{table}
 
-%TODO: missing 1st onchip measurment of 3x3
-
 the matrix algorithm is constant for each size: 49 KB
 
 
 We use a modified version of the Doolittle Algorithm for LU decomposition to compute the determinant. This algorithm is discussed in more detail in Section~\ref{sub:theory}.
+
+
+When implementing the custom logic blocks for the floating-point arithmetic operations, we elected to use the floating point blocks provided by Altera's Megafunction tools.
+These tools provide a block for implementing floating point multiplication, or addition and subtraction, among many others \cite{megafunc}.
+
+
+%tab:sw_perf
+%tab:sw_resourceuse
+
+
+There are several different versions of these blocks available, with different clock cycle latency and different Fmax. During this phase of the project, the target clock frequency of the system is 50 MHz.
+As such, all of the provided blocks have an Fmax that is higher than the system Fmax. Therefore, we chose the block with the shortest latency and minimum resource usage.
+Particularly when used as a custom instruction for the CPU, latency is much more important than in a pipelined application. This is because the CPU only has a single execution stage and cannot pipeline the execution \cite{Nios}.
+
+
+We implement custom bypass logic that will compute the result of the requested operation in a single clock cycle if the request is "trivial". 
+For example, if any of the operands are NaN, the result is always NaN, so we can bypass the arithmetic module, and we can finish the operation in a single cycle.
+
+Trivial or degenerate operations include multiplication by negative or positive unity, zero, negative or positive infinity, or NaN. Addition or subtraction by zero, infinity or NaN is also handled.
+
+The bypass module honours all combinations of degenerate operations correctly. For example, the combination of the signs of the operands, and doubly degenerate operations such as infinity multiplied by zero, is correctly handled.
+
 
 
 % section floating_point_hardware (end)
@@ -247,6 +267,39 @@ We implement a
 
 \subsection{Implementation Details} % (fold)
 \label{sub:implementation_details}
+
+There are several different versions of these blocks available, with different clock cycle latency and different Fmax.
+We optimise our design decisions around having the smallest area possible block, while maintaining an Fmax that is at least as fast as the target system frequency, which is 160 MHz.
+As seen in Table~\ref{tab:fp_unit_bench}, we benchmark the blocks to find their Fmax when actually attached to our system. As we try to pick the smallest possible blocks that meed the speed requirement, the set of blocks are not exhaustively tested.
+
+\begin{table}[tbp]
+	\caption{Timing benchmark results of various versions of the Altera floating point units. The chosen type is indicated by the word USE.}
+	\label{tab:fp_unit_bench}
+	\begin{center}
+		\begin{tabular}{l|cccc}
+		\hline
+
+		\hline
+			& \textbf{Speed} 	& \textbf{Latency} 		& \\
+			& \textbf{(MHz)}		& \textbf{(cycles)} & \\
+		\hline
+			\multirow{2}{*}{\textbf{Division Unit}}
+			& 141		& 6 	&  \\
+			& $>$160 	& 14 	& USE \\
+		\hline
+			\textbf{Multiplication Unit}
+			& $>$176 	& 5 	& USE \\
+		\hline
+			\multirow{3}{*}{\textbf{Subtraction Unit}}
+			& 136 		& 7 	& \\
+			& $>$176 	& 8  	& USE \\
+			& $>$176 	& 10 	& \\
+		\hline
+
+		\hline
+		\end{tabular}
+	\end{center}
+\end{table}
 
 
 % subsection implementation_details (end)
@@ -352,35 +405,6 @@ reffering to Algorithm~\ref{alg:doolittle}, we can identify the expected growth 
 			\textbf{Interrupt latency}			& 1 \\
 		\hline
 		
-		\hline
-		\end{tabular}
-	\end{center}
-\end{table}
-
-\begin{table}[tbp]
-	\caption{Timing benchmark results of various versions of the Altera floating point units.}
-	\label{tab:fp_unit_bench}
-	\begin{center}
-		\begin{tabular}{l|cccc}
-		\hline
-
-		\hline
-			& \textbf{Speed} 	& \textbf{Latency} 		& \\
-			& \textbf{(MHz)}		& \textbf{(cycles)} & \\
-		\hline
-			\multirow{2}{*}{\textbf{Division Unit}}
-			& 141		& 6 	&  \\
-			& $>$160 	& 14 	& USE \\
-		\hline
-			\textbf{Multiplication Unit}
-			& $>$176 	& 5 	& USE \\
-		\hline
-			\multirow{3}{*}{\textbf{Subtraction Unit}}
-			& 136 		& 7 	& \\
-			& $>$176 	& 8  	& USE \\
-			& $>$176 	& 10 	& \\
-		\hline
-
 		\hline
 		\end{tabular}
 	\end{center}
@@ -911,6 +935,11 @@ The interface from the software's point of view would be the same, with the supp
 	\emph{Portable and Scalable FPGA-Based Acceleration of a Direct Linear System Solver}. \\
 	\url{http://www.eecg.toronto.edu/~weizer/LUgen/WeiZhang.pdf}
 
+	\bibitem{Nios}
+	Altera Corp,
+	\emph{Nios II Core Implementation Details}. \\
+	\url{http://www.altera.co.uk/literature/hb/nios2/n2cpu_nii51015.pdf}
+
 	\bibitem{ieee754}
 	IEEE,
 	\emph{IEEE Standard for Floating-Point Arithmetic}. \\
@@ -946,6 +975,10 @@ The interface from the software's point of view would be the same, with the supp
 	\emph{Digital Signal Processing Lecture Notes}. \\
 	\url{https://bb.imperial.ac.uk/bbcswebdav/pid-84364-dt-content-rid-271372_1/courses/DSS-EE3_07-12_13/DSP3_Convolution.pdf}
 
+	\bibitem{megafunc}
+	Altera Corp,
+	\emph{Floating-Point Megafunctions User Guide}. \\
+	\url{www.altera.co.uk/literature/ug/ug_altfp_mfug.pdf}
 
 \end{thebibliography}
 
