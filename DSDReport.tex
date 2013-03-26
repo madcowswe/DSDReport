@@ -201,7 +201,7 @@ As such, all of the provided blocks have an Fmax that is higher than the system 
 Particularly when used as a custom instruction for the CPU, latency is much more important than in a pipelined application. This is because the CPU only has a single execution stage and cannot pipeline the execution \cite{Nios}.
 
 We implement custom bypass logic that will compute the result of the requested operation in a single clock cycle if the request is "trivial". 
-For example, if any of the operands are NaN, the result is always NaN, so we can bypass the arithmetic module, and we can finish the operation in a single cycle.
+For example, if any of the operands are NaN \cite{ieee754}, the result is always NaN, so we can bypass the arithmetic module, and we can finish the operation in a single cycle.
 Trivial or degenerate operations include multiplication by negative or positive unity, zero, negative or positive infinity, or NaN. Addition or subtraction by zero, infinity or NaN is also handled.
 The bypass module honours all combinations of degenerate operations correctly. For example, the combination of the signs of the operands, and doubly degenerate operations such as infinity multiplied by zero, is correctly handled.
 
@@ -298,11 +298,36 @@ Upon detecting a write to its memory (via the avalon interface), the accelerator
 
 The DMA unit is a fully custom implementation and performs a pipelined avalon transfer of the matrix contents. A future iteration of the module will switch to a bursting interface due to the reasons outlined in Section~\ref{sub:performancedet}. 
 
-The memory layout for the transferred matrix in the local ram is not the same as in the SDRAM (in other words, not the usual C array contiguous memory layout). The rows of the matrix are aligned with the ram row boundaries (32 four-byte word in the current configuration).  An illustration is shown in <<fig x, ascii art go>>>. This layout simplifies the hardware for row pivots as required by the Doolittle algorithm.
+The memory layout for the transferred matrix in the local ram is not the same as in the SDRAM (in other words, not the usual C array contiguous memory layout). The rows of the matrix are aligned with the ram row boundaries (32 four-byte word in the current configuration).  An illustration is shown in figure \ref{fig:memlayout}. This layout simplifies the hardware for row pivots as required by the Doolittle algorithm.
+
+\begin{figure}[htbp]
+	\begin{center}
+		\begin{lstlisting}
+r\c  0:  1:  2:  3:  4:     31:
+0:  [ 0][ 1][ 2][  ][  ]...[  ]
+1:  [ 3][ 4][ 5][  ][  ]...[  ]
+2:  [ 6][ 7][ 8][  ][  ]...[  ]
+3:  [  ][  ][  ][  ][  ]...[  ]
+4:  [  ][  ][  ][  ][  ]...[  ]
+...
+31: [  ][  ][  ][  ][  ]...[  ]
+
+		\end{lstlisting}
+	\end{center}
+	\caption{Example layout of a 3x3 matrix within 32x32 cache with row alignedness}
+	\label{fig:memlayout}
+\end{figure}
 
 To efficiently implement row permutations, instead of copying memory, a shift register with row pointers is used. All addressing into the local ram is done through this dereferencing register, hence rotations can be done by simply shifting the contents appropriately.
 
-The hardware proceeds to drop into the decomposition algorithm sub-FSM pictured in figure <<<DSD doolittle fsm from lucid>>>.
+The hardware proceeds to drop into the decomposition algorithm sub-FSM pictured in figure \ref{fig:doolittle_fsm}.
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = 1\textwidth]{DSDDoolitleFSM.pdf}
+	\end{center}
+	\caption{FSM part responsible for LU decomposition within doolittle algorithm}
+	\label{fig:doolittle_fsm}
+\end{figure}
 
 The first step of an iteration of the decomposition is to ensure that the normalising factor (the entry on the diagonal that will scale all the left row values) is non-zero. A stage in the FSM performs pivots until either a non-zero value is found or all rows have been exhausted. In the latter case, the matrix is singular and the algorithm terminates early, returning zero as the correct determinant.
 
@@ -409,13 +434,12 @@ As the matrix size increases, there exists a limit at which it is impossible to 
 
 % subsection performance (end)
 
-As mentioned before, the algorithm’s hot loop of $N^2$ complexity is implemented in a pipeline that achieves one matrix entry per cycle (3 fp instructions, one read and one write per cycle). A cubic regression comparison to the previous solutions is shown in \ref{fig:det_bench_results} and the cubic regression results are shown in figure \ref{fig:det_bench_results}.
-
+As mentioned before, the algorithm’s hot loop of $N^2$ complexity is implemented in a pipeline that achieves one matrix entry per cycle (3 fp instructions, one read and one write per cycle). A cubic regression comparison to the previous solutions is shown in \ref{fig:det_bench_results} and the cubic regression results are shown in figure \ref{fig:det_bench_results}. The complexities of the respective operations are shown in table \ref{tab:expected_complexity}.
 \begin{figure}[htbp]
 	\begin{center}
-		\includegraphics[width = \textwidth]{detcubicresult.PNG}
+		\includegraphics[width = \textwidth]{detcalcperf.PNG}
 	\end{center}
-	\caption{Benchmark results of the determinant hardware. Plotted in blue are the data points, and shown in red is a cubic regression, detailed in Table~\ref{tab:polyfit_coeffs}.}
+	\caption{Performance comparison of determinant accelerator to the previous implementations}
 	\label{fig:det_bench_results}
 \end{figure}
 	
@@ -440,7 +464,7 @@ As mentioned before, the algorithm’s hot loop of $N^2$ complexity is implement
 	\end{center}
 \end{table}
 
-The complexities of the respective operations are shown in table \ref{tab:expected_complexity}.
+
 
 \begin{table}[htbp]
 	\caption{Expected complexity of various operations in LU decomposition. Note that element multiplication and subtraction are pipelined and do not add.}
