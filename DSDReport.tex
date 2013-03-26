@@ -75,7 +75,7 @@ breakatwhitespace=true
 
 
 \title{Digital System Design Report}
-\author{Oskar Weigl - ow610\\ and \\ Ryan Savitski - rs510}
+\author{Oskar Weigl - ow610\\ and \\ Ryan Savitski - rs5010}
 %\date{} % Activate to display a given date or no date (if empty),
          % otherwise the current date is printed 
 
@@ -85,14 +85,14 @@ breakatwhitespace=true
 %\renewcommand{\abstractname}{Summary}
 \begin{abstract}
 
-	This report describes the design considerations and implementation details of the Digital System Design assignment involving two subprojects.
+	This report describes the design considerations and implementation details of the Digital System Design assignment involving two sub-projects.
 	The first part concentrates on various methods of adding hardware support to compute arithmetic operations, in particular in computing the determinant of a matrix.
 	A highly optimised hardware accelerator is developed for this purpose, and
 
 	The second part of the project involves the implementation of a streaming filter hardware module.
 	The module is capable of Direct Memory Access, includes optimisations for efficient access to the SDRAM, and uses a buffering and Clock Domain Crossing strategy, to maximise performance.
-	The design process including topology consideraton and a quantisation analysis is presented, and the detailed hardware implentation is described.
-	Further, a considrable timing analysis and several otpimisations to maximise perfomance are presented, and a performance and resouce utilisation analasys is performed. 
+	The design process including topology consideration and a quantisation analysis is presented, and the detailed hardware implementation is described.
+	Further, a considerable timing analysis and several optimisations to maximise performance are presented, and a performance and resource utilisation analysis is performed. 
 	Finally, we verify the operation of the module and conclude with some suggested improvements.
 
 \end{abstract}
@@ -181,7 +181,7 @@ breakatwhitespace=true
 	\end{center}
 \end{table}
 
-We use a modified version of the Doolittle Algorithm for LU decomposition to compute the determinant. This algorithm is discussed in more detail in Section~\ref{sub:theory}.
+We use a modified version of the Doolittle Algorithm for LU decomposition to compute the determinant. This algorithm is discussed in more detail in Section~\ref{sub:determinant_algortihm}.
 This algorithm has the time complexity of $O(n^3)$ as opposed to $O(n!)$ of Laplace expansion, and is therefore much faster for any matrix larger than 4x4.
 During our benchmarking tests, we saw virtually no change to the code size, which is 49 KB.
 Most of the code space is taken up by support functions such as \verb"printf".
@@ -217,19 +217,39 @@ The bypass module honours all combinations of degenerate operations correctly. F
 % section floating_point_hardware (end)
 
 
-
+	
 \clearpage
 
 \section{Determinant Calculation Hardware Accelerator} % (fold)
 \label{sec:determinant_calculation_hardware_accelerator}
+%´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´
 
-PUT INTRODUCTION HERE!
+\subsection{Introduction} % (fold)
+\label{sub:introduction}
 
-IEEE 754 single precision \cite{ieee754}.
+% subsection introduction (end)
 
-\subsection{Theory} % (fold)
-\label{sub:theory}
+This section describes a hardware accelerator solution for finding matrix determinants and its integration into the Nios system.
 
+\subsection{High level overview} % (fold)
+\label{sub:high_level_overview}
+
+% subsection high_level_overview (end)
+The accelerator module is implemented as a memory mapped device in the Nios system. The completion of the operation is indicated to the processor via an IRQ. All software calls to the unit go through a custom software driver layer that handles all details of the interface, as well as providing an abstraction layer between hardware and software. 
+
+The entire computation is done on the hardware, thus the processor is left free to execute other instructions while the determinant is being computed. There is no need for explicit polling on the hardware done by the processor as completion is indicated via an interrupt. Although the driver layer does provide a software flag for the processor to check the status of the computation.
+
+\subsection{Determinant algorithm} % (fold)
+\label{sub:determinant_algortihm}
+
+% subsection determinant_algortihm (end)
+LU decomposition method is chosen as its complexity is O($n^3$). Whereas a naive Laplace expansion approach is O(n!) and as such is computationally intractable for matrices of sizes of interest, as small ones can be handled in software without significant overheads.
+
+LU decomposition can handle any size matrix without needing modifications or extra resources, it can be done fully in-place. Although for implementations of this algorithm there exists an upper bound at which the memory hierarchy of the target architecture becomes the limiting factor, this is discussed further in Section~\ref{sub:resource_usage}.
+
+From examining the algorithm structure, it is noted that the hottest loop maps well to a dataflow pipeline, which the FPGA can readily take advantage of.
+
+The particular implementation algorithm used for LU decomposition is the Doolittle algorithm. Its pseudocode is outlined in Figures~\ref{alg:doolittle}.
 \begin{algorithm}[htbp]
 	\SetAlgoLined
 
@@ -260,35 +280,93 @@ IEEE 754 single precision \cite{ieee754}.
 	determinant $\leftarrow \prod_{k=1}^N a_{k,k}$
 	\bigskip
 
-	\caption{The Doolittle Algorithm for computing the LU decomposition of a matrix, as found in \cite{LUgen}, but modified to compute the determinant, and include pivoting.}
+	\caption{The Doolittle Algorithm for computing the determinant of a matrix through LU decomposition, as found in \cite{LUgen}, but modified to compute the determinant, and including pivoting.}
 	\label{alg:doolittle}
 \end{algorithm}
 
-This hardware module uses a modified version of the Doolittle Algorithm to compute the determinant of a matrix.
-We implement a 
-
-% subsection theory (end)
-
-\subsection{Interface Overview} % (fold)
-\label{sub:interface_overview}
-
-
-% subsection interface_overview (end)
-
 
 \subsection{Operation} % (fold)
-\label{sub:det_operation}
-
+\label{sub:operationdet}
 
 % subsection operation (end)
 
+At system initialisation, a custom ISR is registered by the driver to the determinant block’s IRQ number. From the software’s point of view, the determinant calculation is started by a call to the driver layer, the arguments passed are the memory pointer to the matrix and its size.
 
-\subsection{Implementation Details} % (fold)
-\label{sub:implementation_details}
+The driver layer first initialises a data cache flush on the processor side to ensure that the matrix is in a consistent state on the SDRAM. Then the driver proceeds to do a direct uncacheable IO write to the memory mapped registers of the accelerator, passing the same arguments to the hardware. 
 
-There are several different versions of these blocks available, with different clock cycle latency and different Fmax.
-We optimise our design decisions around having the smallest area possible block, while maintaining an Fmax that is at least as fast as the target system frequency, which is 160 MHz.
-As seen in Table~\ref{tab:fp_unit_bench}, we benchmark the blocks to find their Fmax when actually attached to our system. As we try to pick the smallest possible blocks that meed the speed requirement, the set of blocks are not exhaustively tested.
+Upon detecting a write to its memory (via the avalon interface), the accelerator begins its operation by starting a DMA transfer of the matrix from the SDRAM to a local cache (which is private to the determinant). The alternative strategies, such as a shared data cache with the processor, are discussed in Section~\ref{sub:performancedet}.
+
+The DMA unit is a fully custom implementation and performs a pipelined avalon transfer of the matrix contents. A future iteration of the module will switch to a bursting interface due to the reasons outlined in Section~\ref{sub:performancedet}. 
+
+The memory layout for the transferred matrix in the local ram is not the same as in the SDRAM (in other words, not the usual C array contiguous memory layout). The rows of the matrix are aligned with the ram row boundaries (32 four-byte word in the current configuration).  An illustration is shown in <<fig x, ascii art go>>>. This layout simplifies the hardware for row pivots as required by the Doolittle algorithm.
+
+To efficiently implement row permutations, instead of copying memory, a shift register with row pointers is used. All addressing into the local ram is done through this dereferencing register, hence rotations can be done by simply shifting the contents appropriately.
+
+The hardware proceeds to drop into the decomposition algorithm sub-FSM pictured in figure <<<DSD doolittle fsm from lucid>>>.
+
+The first step of an iteration of the decomposition is to ensure that the normalising factor (the entry on the diagonal that will scale all the left row values) is non-zero. A stage in the FSM performs pivots until either a non-zero value is found or all rows have been exhausted. In the latter case, the matrix is singular and the algorithm terminates early, returning zero as the correct determinant.
+
+After pivoting, the hardware reads the top row and left column of the current iteration matrix size (which is decremented after each full iteration) into extra registers. This is to ensure that the actual performance critical section of the pipeline can sustain itself with only one read and one write (of a matrix entry) per cycle.
+
+The next state is the pipelined kernel of the hot loop. The pipeline is illustrated in the Figure~\ref{fig:det_block}.
+
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width = 0.8\textwidth]{DeterminantPipeline.pdf}
+	\end{center}
+	\caption{Block diagram of the hardware implementation of the pipeline implementing Doolittle's hot loop. The numbers above the arithmetic blocks indicate latency.}
+	\label{fig:det_block}
+\end{figure}
+
+The pipeline starts by feeding the first column divided by the normalisation factor (alpha) into the division block. Once the first result flows to the output of the division unit, the unit’s enable is deasserted and handed over to the multiply stage to control. The multiply stage continuously does a wrapping sweep of the top row and multiplies them by the normalised values from the division stage. The div unit is enabled every time a row is finished. Next, the subtractor module reads submatrix values in row major order and subtracts the corresponding normalised factors. This performs the hot loop of the Doolittle algorithm in a fully pipelined way. It achieves 100\% pipeline utilisation with 3 fp instructions per cycle and both read of a matrix entry and a write per cycle. Therefore a kernel pass for an iteration for the matrix size of N takes $(N-1)^2$ clock cycles (disregarding the pipeline latency).
+
+Note: for determinant finding, the full LU decomposition is not required, only the correct diagonal entries in the L matrix. Therefore the hardware does not compute redundant zero values but rather treats them as zero implicitly.
+
+Once an iteration is complete, the matrix size is decremented and the hardware transitions back to checking whether proper termination or singularity conditions are met, if not, the next iteration of the algorithm runs as above, ending when we reach a 1x1 matrix size.
+
+In the (usual) case of the algorithm not terminating early due to a singular matrix input, we need to multiply the diagonal entries together to obtain the determinant. This is done by a separate sub-fsm that does a naive serial multiplication with an accumulator. 
+
+Once the determinant is obtained, it is written to the result register and the interrupt is raised. When the ISR reads the result, hardware transitions to the idle state, ready to process the next request.
+
+\subsection{Resources} % (fold)
+\label{sub:resources}
+
+% subsection resources (end)
+\subsubsection{Resource usage} % (fold)
+\label{sub:resource_usage}
+
+% subsection resource_usage (end)
+The resource usage for the determinant accelerator module is shown in table \ref{tab:resource_util_det}.
+
+\begin{table}[htbp]
+	\caption{Resource Utilisation of the Determinant module. Note that two fp\_mul units are used.}
+	\label{tab:resource_util_det}
+	\begin{center}
+		\begin{tabular}{l|ccccc}
+		\hline
+
+		\hline
+											& \textbf{Entire Module} 	& \textbf{fp\_div} 		& \textbf{fp\_mul}	& \textbf{fp\_sub} 	& \textbf{matrixram} \\
+		\hline
+			\textbf{Logic Cells} 			& 5978						& 404 					& 264 				& 827 				& 0 \\
+			\textbf{Dedicated Registers}	& 3663						& 291 					& 208 				& 426				& 0 \\
+			\textbf{M9K Memory Blocks}		& 11						& 6 					& 0 				& 1 				& 4 \\
+			\textbf{Multiplier Elements}	& 31						& 16 					& 7 				& 0					& 0 \\
+		\hline
+
+		\hline
+		\end{tabular}
+	\end{center}
+\end{table}
+
+\subsection{Scaling} % (fold)
+\label{sub:scaling}
+
+% subsection scaling (end)
+Due to the nature of the algorithm, the same hardware tackles all sizes up to the memory capacity. Current implementation does 32x32 upper bound, which is $2^12$ bytes as each entry is a four byte fp single precision. This maps to 4 m9k units for local ram. Row and column preloading registers requires $2^8$ bytes. 
+
+There are different versions of the fp units available, with different clock cycle latency and maximum frequency max. The design choices are guided by smallest area possible block, while maintaining an fmax that is at least as fast as the target system frequency, which is 160 MHz. The choices are shown in table \ref{tab:fp_unit_bench}.
+
 
 \begin{table}[tbp]
 	\caption{Timing benchmark results of various versions of the Altera floating point units. The chosen type is indicated by the word USE.}
@@ -320,53 +398,18 @@ As seen in Table~\ref{tab:fp_unit_bench}, we benchmark the blocks to find their 
 \end{table}
 
 
-% subsection implementation_details (end)
+Note that no additional fp units are needed as the pipeline stays the same for all possible matrix sizes.
 
+If we were to scale the design from 32x32 to 64x64 max size. The m9ks for local ram scale from 4 to 16 and row/col registers scale from $2^8$ (can be packed in 1 m9k) to $2^9$ which can still be packed in one m9k. There is also a small footprint of extending several sweeping counters by one bit, but that does not a perceivable impact.
+
+As the matrix size increases, there exists a limit at which it is impossible to cache to the entire matrix. At this point, the main memory (SDRAM) access times become the blocking factor with the usual access patterns that need to reload caches. Instead, the design would have to transition to maximising work done per cached piece of the matrix. Block LU decomposition \cite{LUgen}. decomposition does that, but is a different algorithm and would need different hardware as well.
 
 \subsection{Performance} % (fold)
-\label{sub:performance}
-
+\label{sub:performancedet}
 
 % subsection performance (end)
 
-
-\subsection{Scalability} % (fold)
-\label{sub:scalability}
-
-
-% subsection scalability (end)
-
-
-
-
-\begin{table}[htbp]
-	\caption{Resource Utilisation of the Determinant module. Note that two fp\_mul units are used.}
-	\label{tab:resource_util_det}
-	\begin{center}
-		\begin{tabular}{l|ccccc}
-		\hline
-
-		\hline
-											& \textbf{Entire Module} 	& \textbf{fp\_div} 		& \textbf{fp\_mul}	& \textbf{fp\_sub} 	& \textbf{matrixram} \\
-		\hline
-			\textbf{Logic Cells} 			& 5978						& 404 					& 264 				& 827 				& 0 \\
-			\textbf{Dedicated Registers}	& 3663						& 291 					& 208 				& 426				& 0 \\
-			\textbf{M9K Memory Blocks}		& 11						& 6 					& 0 				& 1 				& 4 \\
-			\textbf{Multiplier Elements}	& 31						& 16 					& 7 				& 0					& 0 \\
-		\hline
-
-		\hline
-		\end{tabular}
-	\end{center}
-\end{table}
-
-\begin{figure}[htbp]
-	\begin{center}
-		\includegraphics[width = 0.8\textwidth]{DeterminantPipeline.pdf}
-	\end{center}
-	\caption{Block diagram of the hardware implementation of the Doolittle Algorithm. The number above the arithmetic blocks indicate latency.}
-	\label{fig:det_block}
-\end{figure}
+As mentioned before, the algorithm’s hot loop of $N^2$ complexity is implemented in a pipeline that achieves one matrix entry per cycle (3 fp instructions, one read and one write per cycle). A cubic regression comparison to the previous solutions is shown in \ref{fig:det_bench_results} and the cubic regression results are shown in figure \ref{fig:det_bench_results}.
 
 \begin{figure}[htbp]
 	\begin{center}
@@ -375,9 +418,9 @@ As seen in Table~\ref{tab:fp_unit_bench}, we benchmark the blocks to find their 
 	\caption{Benchmark results of the determinant hardware. Plotted in blue are the data points, and shown in red is a cubic regression, detailed in Table~\ref{tab:polyfit_coeffs}.}
 	\label{fig:det_bench_results}
 \end{figure}
-
+	
 \begin{table}[htbp]
-	\caption{The result of the cubic regression shown in Figure~\ref{fig:det_bench_results}.}
+	\caption{The result of the cubic regression shown in Figure~\ref{fig:det_bench_results}. Note that the actual cycle performance matches the expected complexity of $N^3$.}
 	\label{tab:polyfit_coeffs}
 	\begin{center}
 		\begin{tabular}{l|cccc}
@@ -397,8 +440,7 @@ As seen in Table~\ref{tab:fp_unit_bench}, we benchmark the blocks to find their 
 	\end{center}
 \end{table}
 
-
-reffering to Algorithm~\ref{alg:doolittle}, we can identify the expected growth of different parts of the algorithm.
+The complexities of the respective operations are shown in table \ref{tab:expected_complexity}.
 
 \begin{table}[htbp]
 	\caption{Expected complexity of various operations in LU decomposition. Note that element multiplication and subtraction are pipelined and do not add.}
@@ -408,9 +450,9 @@ reffering to Algorithm~\ref{alg:doolittle}, we can identify the expected growth 
 		\hline
 
 		\hline
-			\textbf{Element multiplication} 	& $N^3/2$ \\
+			\textbf{Element multiplication} 	& $N^3/3$ \\
 		\hline
-			\textbf{Element subtraction} 		& $N^3/2$ \\
+			\textbf{Element subtraction} 		& $N^3/3$ \\
 		\hline
 			\textbf{Matrix memory copy} 		& $N^2$ \\
 		\hline
@@ -429,10 +471,27 @@ reffering to Algorithm~\ref{alg:doolittle}, we can identify the expected growth 
 \end{table}
 
 
+\subsubsection{Improving performance} % (fold)
+\label{sub:improving_performance}
+
+% subsection improving_performance (end)
+
+Memory transfer time by the DMA is significant up to a point where $N^2$ times the SDRAM access time gets dominated by the $N^3$ Doolittle algorithm complexity. For current matrix sizes up to 32x32, the transfer time is relevant at all sizes. Assuming the processor does operations on the matrix which determinant it wants to compute (otherwise it would be a compile time constant). We could share the cache with the processor with cache coherency algorithms.
+
+The accelerator with processor versions that don't have either instruction or data cache means that instruction/data fetches create contention for the SDRAM and do not let the pipelined transfer copy the entire matrix in one go. A bursting interface would not suffer from this and always do an entire transfer in a single transaction.
+
+Several parts of the FSMs can be “improved” by pipelining certain states, such as doing a multiply tree for the diagonal multiplication at the end or starting the kernel pipeline as the hardware is preloading the first row and column. However, all of these optimisations are small constant factors of several cycles and are completely dominated by the $n^3$ complexity of the algorithm. Furthermore, these alterations increase the complexity of design and make it less modular.
+
+One way of speeding up the algorithm’s kernel pipeline by a factor of two is to instead of storing the matrix entries in the m9k ram blocks serially, we can stripe the bytes of one entry across several blocks. Then we can read two continuous fp single instruction entries in a cycle, therefore the pipeline can be duplicated and the relevant $N^2$ loop is sped by a factor of two.
+
+%´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´
+
+
+
+
+
+
 % section determinant_calculation_hardware_accelerator (end)
-
-
-\clearpage
 
 
 \section{Notch Filter} % (fold)
