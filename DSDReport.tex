@@ -82,7 +82,7 @@ breakatwhitespace=true
 \begin{document}
 \maketitle
 
-%\renewcommand{\abstractname}{Summary}
+\renewcommand{\abstractname}{Introduction}
 \begin{abstract}
 
 	This report describes the design considerations and implementation details of the Digital System Design assignment involving two sub-projects.
@@ -132,14 +132,15 @@ breakatwhitespace=true
 \end{table}
 
 
-\begin{table}[bp]
-	\caption{Performance comparison of determinant calculation for various hardware configurations and matrix sizes. The algorithm used is based on LU decomposition and the hardware is set up as shown in Table~\ref{tab:fp_hw_setup}. Entries are time in milliseconds per matrix.}
+\begin{table}[p]
+	\caption{Performance comparison of determinant calculation for various hardware configurations and matrix sizes. The algorithm used is based on LU decomposition and the hardware is set up as shown in Table~\ref{tab:fp_hw_setup}.}
 	\label{tab:sw_perf}
 	\begin{center}
 		\begin{tabular}{r|ccccc}
 		\hline
 
 		\hline
+			(ms/matrix)
 			& \textbf{3x3}	& \textbf{6x6}	& \textbf{8x8}	& \textbf{10x10}	& \textbf{20x20} \\ 
 		\hline
 			\textbf{No hardware multipliers}
@@ -157,7 +158,7 @@ breakatwhitespace=true
 	\end{center}
 \end{table}
 
-\begin{table}[bp]
+\begin{table}[p]
 	\caption{Resource usage of entire system with different types of multipliers used. Columns are logic elements, combinational functions, registers, memory bits and 18 bit multipliers.}
 	\label{tab:sw_resourceuse}
 	\begin{center}
@@ -183,18 +184,21 @@ breakatwhitespace=true
 	\end{center}
 \end{table}
 
-We use a modified version of the Doolittle Algorithm for LU decomposition to compute the determinant. This algorithm is discussed in more detail in Section~\ref{sub:determinant_algortihm}.
-This algorithm has the time complexity of $O(n^3)$ as opposed to $O(n!)$ of Laplace expansion, and is therefore much faster for any matrix larger than 4x4.
+We use a modified version of the Doolittle Algorithm for LU decomposition to compute the determinant of a matrix.
+We implement a software version and perform several benchmarks with different hardware configurations, and finally implement and benchmark a custom instruction hardware module for the use with this software algorithm.
+
+The modified Doolittle Algorithm is discussed in more detail in Section~\ref{sub:determinant_algortihm}, but worth noting is that this algorithm has the time complexity of $O(n^3)$ as opposed to $O(n!)$ of Laplace expansion, and is therefore much faster for any matrix larger than 4x4.
 During our benchmarking tests, we saw virtually no change to the code size, which is 49 KB.
 Most of the code space is taken up by support functions such as \verb"printf".
 
 Seen in Table~\ref{tab:fp_hw_setup} is the configuration of the system during testing. The performance results can be seen in Table~\ref{tab:sw_perf} and Figure~\ref{fig:det_calc_perf}, and the resource usage can be seen in Table~\ref{tab:sw_resourceuse}.
-We see an improvement in the runtime of the algorithm when using integer multiplication hardware over software multiplication using shift-and-add.
+We see an improvement in the runtime of the algorithm when using integer multiplication hardware over software multiplication.
 The resource penalty of implementing these integer multiplication units depends on the type implemented. When using embedded multiplier blocks, we consume four 18 by 18 multiplier blocks, and only around 200 logic elements.
 Conversely, to implement the multiplication using Logic Elements, we incur a penalty of 400 logic elements.
-Depending on the resource restrictions in the application, either may be better. In general, however, if there are spare multiplier blocks, it is better in terms of resource utilisation to use these as they cannot be used for other purposes.
+Depending on the resource restrictions in the application, either may be better.
+%In general, if there are spare multiplier blocks, it is better in terms of resource utilisation to use these as they cannot be used for other purposes.
 
-We see a considerable further improvement to the performance of the algorithm when using dedicated floating point hardware to perform the operations over using software operations.
+We see a considerable further improvement to the performance of the algorithm when using dedicated floating point hardware to perform the operations.
 When implementing the custom logic blocks for the floating-point arithmetic operations, we elected to use the floating point blocks provided by Altera's Megafunction tools.
 These tools provide a block for implementing floating point multiplication, or addition and subtraction, among many others \cite{megafunc}.
 
@@ -207,7 +211,7 @@ For example, if any of the operands are NaN \cite{ieee754}, the result is always
 Trivial or degenerate operations include multiplication by negative or positive unity, zero, negative or positive infinity, or NaN. Addition or subtraction by zero, infinity or NaN is also handled.
 The bypass module honours all combinations of degenerate operations correctly. For example, the combination of the signs of the operands, and doubly degenerate operations such as infinity multiplied by zero, is correctly handled.
 
-\begin{figure}[bp]
+\begin{figure}[p]
 	\begin{center}
 		\includegraphics[width = \textwidth]{detcalcperf.PNG}
 	\end{center}
@@ -218,8 +222,6 @@ The bypass module honours all combinations of degenerate operations correctly. F
 
 % section floating_point_hardware (end)
 
-
-	
 \clearpage
 
 \section{Determinant Calculation Hardware Accelerator} % (fold)
@@ -237,7 +239,7 @@ This section describes a hardware accelerator solution for finding matrix determ
 \label{sub:high_level_overview}
 
 % subsection high_level_overview (end)
-The accelerator module is implemented as a memory mapped device in the Nios system. The completion of the operation is indicated to the processor via an IRQ. All software calls to the unit go through a custom software driver layer that handles all details of the interface, as well as providing an abstraction layer between hardware and software. 
+The accelerator module is implemented as a memory mapped device in the Nios system. The completion of the operation is indicated to the processor via an Interrupt Request (IRQ). All software calls to the unit go through a custom software driver layer that handles all details of the interface, as well as providing an abstraction layer between hardware and software. 
 
 The entire computation is done on the hardware, thus the processor is left free to execute other instructions while the determinant is being computed. There is no need for explicit polling on the hardware done by the processor as completion is indicated via an interrupt. Although the driver layer does provide a software flag for the processor to check the status of the computation.
 
@@ -252,7 +254,8 @@ LU decomposition can handle any size matrix without needing modifications or ext
 From examining the algorithm structure, it is noted that the hottest loop maps well to a dataflow pipeline, which the FPGA can readily take advantage of.
 
 The particular implementation algorithm used for LU decomposition is the Doolittle algorithm. Its pseudocode is outlined in Figures~\ref{alg:doolittle}.
-\begin{algorithm}[htbp]
+
+\begin{algorithm}[tbp]
 	\SetAlgoLined
 
 	\KwData{N x N matrix: A}
@@ -292,7 +295,7 @@ The particular implementation algorithm used for LU decomposition is the Doolitt
 
 % subsection operation (end)
 
-At system initialisation, a custom ISR is registered by the driver to the determinant block’s IRQ number. From the software’s point of view, the determinant calculation is started by a call to the driver layer, the arguments passed are the memory pointer to the matrix and its size.
+At system initialisation, a custom Interrupt Service Routine (ISR) is registered by the driver to the determinant block’s IRQ number. From the software’s point of view, the determinant calculation is started by a call to the driver layer, the arguments passed are the memory pointer to the matrix and its size.
 
 The driver layer first initialises a data cache flush on the processor side to ensure that the matrix is in a consistent state on the SDRAM. Then the driver proceeds to do a direct uncacheable IO write to the memory mapped registers of the accelerator, passing the same arguments to the hardware. 
 
@@ -302,7 +305,7 @@ The DMA unit is a fully custom implementation and performs a pipelined avalon tr
 
 The memory layout for the transferred matrix in the local ram is not the same as in the SDRAM (in other words, not the usual C array contiguous memory layout). The rows of the matrix are aligned with the ram row boundaries (32 four-byte word in the current configuration).  An illustration is shown in figure \ref{fig:memlayout}. This layout simplifies the hardware for row pivots as required by the Doolittle algorithm.
 
-\begin{figure}[htbp]
+\begin{figure}[tbp]
 	\begin{center}
 		\begin{lstlisting}
 r\c  0:  1:  2:  3:  4:     31:
@@ -323,7 +326,7 @@ r\c  0:  1:  2:  3:  4:     31:
 To efficiently implement row permutations, instead of copying memory, a shift register with row pointers is used. All addressing into the local ram is done through this dereferencing register, hence rotations can be done by simply shifting the contents appropriately.
 
 The hardware proceeds to drop into the decomposition algorithm sub-FSM pictured in figure \ref{fig:doolittle_fsm}.
-\begin{figure}[htbp]
+\begin{figure}[tbp]
 	\begin{center}
 		\includegraphics[width = 1\textwidth]{DSDDoolitleFSM.pdf}
 	\end{center}
@@ -337,7 +340,7 @@ After pivoting, the hardware reads the top row and left column of the current it
 
 The next state is the pipelined kernel of the hot loop. The pipeline is illustrated in the Figure~\ref{fig:det_block}.
 
-\begin{figure}[htbp]
+\begin{figure}[tbp]
 	\begin{center}
 		\includegraphics[width = 0.8\textwidth]{DeterminantPipeline.pdf}
 	\end{center}
@@ -365,7 +368,7 @@ Once the determinant is obtained, it is written to the result register and the i
 % subsection resource_usage (end)
 The resource usage for the determinant accelerator module is shown in table \ref{tab:resource_util_det}.
 
-\begin{table}[htbp]
+\begin{table}[tbp]
 	\caption{Resource Utilisation of the Determinant module. Note that two fp\_mul units are used.}
 	\label{tab:resource_util_det}
 	\begin{center}
@@ -390,7 +393,7 @@ The resource usage for the determinant accelerator module is shown in table \ref
 \label{sub:scaling}
 
 % subsection scaling (end)
-Due to the nature of the algorithm, the same hardware tackles all sizes up to the memory capacity. Current implementation does 32x32 upper bound, which is $2^12$ bytes as each entry is a four byte fp single precision. This maps to 4 m9k units for local ram. Row and column preloading registers requires $2^8$ bytes. 
+Due to the nature of the algorithm, the same hardware tackles all sizes up to the memory capacity. Current implementation does 32x32 upper bound, which is $2^{12}$ bytes as each entry is a four byte fp single precision. This maps to 4 m9k units for local ram. Row and column preloading registers requires $2^8$ bytes.
 
 There are different versions of the fp units available, with different clock cycle latency and maximum frequency max. The design choices are guided by smallest area possible block, while maintaining an fmax that is at least as fast as the target system frequency, which is 160 MHz. The choices are shown in table \ref{tab:fp_unit_bench}.
 
@@ -437,7 +440,7 @@ As the matrix size increases, there exists a limit at which it is impossible to 
 % subsection performance (end)
 
 As mentioned before, the algorithm’s hot loop of $N^2$ complexity is implemented in a pipeline that achieves one matrix entry per cycle (3 fp instructions, one read and one write per cycle). A cubic regression comparison to the previous solutions is shown in \ref{fig:det_bench_results} and the cubic regression results are shown in figure \ref{fig:det_bench_results}. The complexities of the respective operations are shown in table \ref{tab:expected_complexity}.
-\begin{figure}[htbp]
+\begin{figure}[tbp]
 	\begin{center}
 		\includegraphics[width = \textwidth]{detcalcperf.PNG}
 	\end{center}
@@ -445,7 +448,7 @@ As mentioned before, the algorithm’s hot loop of $N^2$ complexity is implement
 	\label{fig:det_bench_results}
 \end{figure}
 	
-\begin{table}[htbp]
+\begin{table}[tbp]
 	\caption{The result of the cubic regression shown in Figure~\ref{fig:det_bench_results}. Note that the actual cycle performance matches the expected complexity of $N^3$.}
 	\label{tab:polyfit_coeffs}
 	\begin{center}
@@ -468,7 +471,7 @@ As mentioned before, the algorithm’s hot loop of $N^2$ complexity is implement
 
 
 
-\begin{table}[htbp]
+\begin{table}[tbp]
 	\caption{Expected complexity of various operations in LU decomposition. Note that element multiplication and subtraction are pipelined and do not add.}
 	\label{tab:expected_complexity}
 	\begin{center}
@@ -512,13 +515,9 @@ One way of speeding up the algorithm’s kernel pipeline by a factor of two is t
 
 %´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´
 
-
-
-
-
-
 % section determinant_calculation_hardware_accelerator (end)
 
+\clearpage
 
 \section{Notch Filter} % (fold)
 \label{sec:notch_filter}
