@@ -87,7 +87,9 @@ breakatwhitespace=true
 
 	This report describes the design considerations and implementation details of the Digital System Design assignment involving two sub-projects.
 	The first part concentrates on various methods of adding hardware support to compute arithmetic operations, in particular in computing the determinant of a matrix.
-	A highly optimised hardware accelerator is developed for this purpose, and
+	We implement a software algorithm based on LU Decomposition to efficiently compute the determinant of a matrix. We explore the use of different types of multipliers to achieve this, and compare the results to a custom floating point unit.
+
+	Further, a highly optimised hardware accelerator is developed as a hardware implementation of the Doolittle algorithm.
 
 	The second part of the project involves the implementation of a streaming filter hardware module.
 	The module is capable of Direct Memory Access, includes optimisations for efficient access to the SDRAM, and uses a buffering and Clock Domain Crossing strategy, to maximise performance.
