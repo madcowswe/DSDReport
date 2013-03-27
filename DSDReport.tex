@@ -366,10 +366,10 @@ Once the determinant is obtained, it is written to the result register and the i
 \label{sub:resource_usage}
 
 % subsection resource_usage (end)
-The resource usage for the determinant accelerator module is shown in table \ref{tab:resource_util_det}.
+The resource usage for the determinant accelerator module is shown in table \ref{tab:resource_util_det}. Note that the big LE usage is due to row/col preloading memory synthesised to LEs instead of being packed into one m9k (which is just a synthesis setting).
 
 \begin{table}[tbp]
-	\caption{Resource Utilisation of the Determinant module. Note that two fp\_mul units are used.}
+	\caption{Resource utilisation of the determinant module. Note that two fp\_mul units are used. Also note that the big LE usage is due to row/col preloading memory synthesised to LEs instead of being packed into one m9k (which is just a synthesis setting)}
 	\label{tab:resource_util_det}
 	\begin{center}
 		\begin{tabular}{l|ccccc}
